@@ -1,0 +1,49 @@
+
+# R / RStudio
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+
+# renv
+renv/library/
+renv/staging/
+renv/python/
+renv/sandbox/
+
+# Environment
+.Renviron
+.env
+
+# Data (large files - keep in data-raw locally, don't commit)
+data-raw/*.csv
+data-raw/*.rds
+data-raw/*.parquet
+
+# Model objects (large files)
+models/*.rds
+models/*.rda
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Deployment
+rsconnect/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+*.tmp
+*~
+
+# Docs
+docs/Handoff_document.md
+

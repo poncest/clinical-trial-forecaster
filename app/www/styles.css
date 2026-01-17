@@ -1,0 +1,131 @@
+/* =============================================================================
+   Clinical Trial Duration Forecaster - Custom Styles
+   ============================================================================= */
+
+/* Smooth transitions */
+.ui.tab {
+  transition: opacity 0.2s ease;
+}
+
+/* Input field styling */
+.shiny-input-container {
+  margin-bottom: 0 !important;
+}
+
+.shiny-input-container .form-control,
+.shiny-input-container select {
+  border-radius: 6px !important;
+  border: 1px solid #E2E8F0 !important;
+  padding: 0.8em 1em !important;
+  font-size: 0.95em !important;
+}
+
+.shiny-input-container .form-control:focus,
+.shiny-input-container select:focus {
+  border-color: #0077B6 !important;
+  box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.1) !important;
+}
+
+/* Button hover effects */
+.ui.button {
+  transition: all 0.2s ease !important;
+}
+
+.ui.primary.button {
+  background: #0077B6 !important;
+}
+
+.ui.primary.button:hover {
+  background: #023E8A !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 119, 182, 0.3) !important;
+}
+
+/* Card hover effects */
+.kpi-card {
+  transition: all 0.2s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Insight box styling */
+.insight-box {
+  transition: all 0.2s ease;
+}
+
+.insight-box:hover {
+  background: #F1F5F9;
+}
+
+/* Modal styling */
+.ui.modal {
+  border-radius: 12px !important;
+}
+
+.ui.modal > .header {
+  border-radius: 12px 12px 0 0 !important;
+  background: #F8FAFC !important;
+}
+
+/* Table improvements */
+.rt-table {
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Selection color */
+::selection {
+  background: rgba(0, 119, 182, 0.2);
+}
+
+/* Print styles */
+@media print {
+  .sidebar-container {
+    display: none !important;
+  }
+  
+  .main-content {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 1em !important;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .sidebar-container {
+    min-height: auto !important;
+    padding: 1em !important;
+  }
+  
+  .kpi-value {
+    font-size: 2em !important;
+  }
+  
+  .prediction-value {
+    font-size: 2.5em !important;
+  }
+}
