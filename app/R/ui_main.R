@@ -259,7 +259,9 @@ ui <- semanticPage(
           style = "font-size: 0.8em; opacity: 0.7; text-align: center;",
           paste0(format(app_info$n_trials, big.mark = ","), " oncology trials"),
           br(),
-          "ClinicalTrials.gov"
+          "ClinicalTrials.gov",
+          br(),
+          paste0("Model: ", app_info$model_trained)
         )
       )
     ),
@@ -385,6 +387,12 @@ ui <- semanticPage(
         // Update tab visibility
         $('.ui.tab').removeClass('active');
         $('.ui.tab[data-tab=\"' + tab + '\"]').addClass('active');
+        
+        // Force Shiny to bind inputs/outputs in newly visible tab (with delay)
+        setTimeout(function() {
+          Shiny.bindAll();
+          $(window).trigger('resize');
+        }, 100);
       });
     });
   "))

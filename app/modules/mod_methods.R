@@ -64,16 +64,19 @@ mod_methods_ui <- function(id) {
           class = "column",
           h4("Inclusion Criteria"),
           tags$ul(
-            tags$li("Interventional studies (not observational)"),
+            tags$li("Condition contains 'cancer' (broad oncology filter)"),
             tags$li("Phase 2, Phase 1/2, Phase 2/3, or Phase 3"),
             tags$li("Completed status with valid start and completion dates"),
             tags$li("Valid enrollment data (> 0 participants)"),
             tags$li("Duration between 1 and 180 months (outliers removed)")
           ),
           
-          h4("Data Quality"),
-          p("Trials with missing critical fields (enrollment, sites, countries, dates) 
-             were excluded. Final dataset retained 95.9% of initially qualifying trials.")
+          h4("Data Quality Notes"),
+          p(style = paste0("font-size: 0.9em; color: ", colors$text_secondary),
+            "Registry enrollment values may be updated during or after the study; 
+             predictions assume inputs reflect final reported values. The 'cancer' 
+             keyword filter is broad and may include supportive care, prevention, 
+             and screening studies.")
         )
       )
     ),
@@ -93,12 +96,16 @@ mod_methods_ui <- function(id) {
           class = "column",
           h4("Feature Engineering"),
           tags$ul(
-            tags$li(tags$strong("Target: "), "Log-transformed duration (months)"),
+            tags$li(tags$strong("Target: "), "Log-transformed duration (start date to completion date, in months)"),
             tags$li(tags$strong("Log transforms: "), "Enrollment, sites, enrollment/site"),
             tags$li(tags$strong("Categorical encoding: "), "Phase, sponsor type"),
             tags$li(tags$strong("Derived features: "), "Multi-site flag, multinational flag"),
             tags$li(tags$strong("Scaling: "), "Numeric features normalized")
-          )
+          ),
+          p(style = paste0("font-size: 0.85em; color: ", colors$text_secondary, "; font-style: italic;"),
+            "Note: Duration is measured from study start to completion date as recorded in 
+             ClinicalTrials.gov, which includes follow-up periods. This differs from 
+             'last patient last visit' operational milestones.")
         ),
         
         div(
@@ -200,6 +207,28 @@ mod_methods_ui <- function(id) {
       
       div(
         class = "insight-box",
+        style = paste0("border-left-color: ", colors$warning, ";"),
+        h4(style = "margin-top: 0;", "Prediction Timepoint Assumption"),
+        p("The top predictor (registration-to-start lag) is only known ", tags$em("after"), 
+          " study startup. This model is best suited for predictions made at or after study 
+           start, not for early planning when startup time must itself be estimated. For 
+           pre-startup forecasting, treat the startup lag input as an assumption to be 
+           validated.")
+      ),
+      
+      div(
+        class = "insight-box",
+        style = paste0("border-left-color: ", colors$warning, ";"),
+        h4(style = "margin-top: 0;", "Validation Approach"),
+        p("The model was validated using random train/test splits stratified by phase, not 
+           time-based splits. Performance metrics may overestimate accuracy for forecasting 
+           future trials, as clinical trial operations evolve over time. A time-based 
+           validation (train on earlier years, test on later years) would provide more 
+           conservative and realistic performance estimates.")
+      ),
+      
+      div(
+        class = "insight-box",
         h4(style = "margin-top: 0;", "Survivorship Bias"),
         p("The model is trained only on completed trials. Terminated, suspended, or 
            withdrawn trials are excluded, potentially biasing estimates toward 
@@ -219,7 +248,9 @@ mod_methods_ui <- function(id) {
         h4(style = "margin-top: 0;", "Registry Data Quality"),
         p("ClinicalTrials.gov data is self-reported by sponsors. Data quality varies, 
            and some fields (particularly site counts and enrollment figures) may be 
-           updated inconsistently throughout the trial lifecycle.")
+           updated inconsistently throughout the trial lifecycle. Enrollment values 
+           in the training data reflect 'actual' (final) enrollment, not 'anticipated' 
+           enrollment available at planning time.")
       )
     ),
     
@@ -322,11 +353,11 @@ mod_methods_server <- function(id, trials_data, app_info) {
           "is_multinational"
         ),
         Definition = c(
-          "Natural log of target enrollment",
+          "Natural log of enrollment (actual/final reported value)",
           "Natural log of (number of sites + 1)",
           "Natural log of (enrollment / sites + 1)",
           "Number of countries with participating sites",
-          "Days from ClinicalTrials.gov registration to study start",
+          "Days from ClinicalTrials.gov registration to study start (known only at/after startup)",
           "Simplified phase category (Phase 2, 1/2, 2/3, 3)",
           "Sponsor type (Industry, Academic/Other, NIH, Gov/Network)",
           "Binary: trial has more than one site",
@@ -337,7 +368,7 @@ mod_methods_server <- function(id, trials_data, app_info) {
           "Numeric (continuous)",
           "Numeric (continuous)",
           "Numeric (integer)",
-          "Numeric (integer, days)",
+          "Numeric (integer, days) ⚠️",
           "Categorical (4 levels)",
           "Categorical (4 levels)",
           "Binary (0/1)",

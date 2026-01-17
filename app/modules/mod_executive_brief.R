@@ -83,18 +83,20 @@ mod_executive_brief_ui <- function(id) {
           div(
             class = "insight-box",
             div(class = "insight-title", "Registration-to-Start Time is the Top Predictor"),
-            p("Trials that take longer to activate after registration tend to run longer overall. 
-               This metric captures operational readiness and startup complexity, explaining more 
-               variance than enrollment size or site count.")
+            p("Trials with longer registration-to-start lag are strongly associated with longer 
+               overall durations in this dataset. This may reflect a mix of startup complexity, 
+               site activation delays, or registry data update patterns. Note: this feature 
+               requires prediction at or after study start.")
           ),
           
           # Finding 2
           div(
             class = "insight-box",
-            div(class = "insight-title", "Site Complexity Matters More Than Raw Count"),
-            p("The enrollment-per-site ratio (burden per site) is a stronger predictor than 
-               total sites alone. High-burden sites correlate with extended timelines, 
-               reflecting recruitment challenges.")
+            div(class = "insight-title", "Site Burden Ratio Shows Strong Association"),
+            p("The enrollment-per-site ratio is a stronger predictor than total sites alone. 
+               Higher patient burden per site is associated with longer timelines, possibly 
+               due to recruitment capacity constraints—though causality cannot be established 
+               from this observational data.")
           ),
           
           # Finding 3
@@ -102,8 +104,8 @@ mod_executive_brief_ui <- function(id) {
             class = "insight-box",
             div(class = "insight-title", "Phase and Sponsor Type Show Expected Patterns"),
             p("Phase 3 trials run longer than Phase 2, and industry-sponsored trials differ 
-               from academic/government studies. These align with domain knowledge and 
-               provide model validation.")
+               from academic/government studies. These associations align with domain knowledge 
+               and provide face validity for the model.")
           )
         )
       ),
@@ -161,7 +163,7 @@ mod_executive_brief_ui <- function(id) {
       style = "margin-top: 1.5em;",
       
       h3(style = paste0("color: ", colors$primary_dark, "; margin-top: 0;"), 
-         icon("target"), " Strategic Application"),
+         icon("target"), " Potential Applications"),
       
       div(
         class = "ui three column stackable grid",
@@ -169,22 +171,25 @@ mod_executive_brief_ui <- function(id) {
         div(
           class = "column",
           h4(style = paste0("color: ", colors$accent), icon("calendar alternate"), " Portfolio Planning"),
-          p("Use predictions to estimate resource requirements and timeline dependencies 
-             across multiple concurrent trials. Identify high-risk studies early.")
+          p("Use predictions as one input to estimate resource requirements and timeline 
+             dependencies. Flag studies with longer predicted durations for additional 
+             review—not as go/no-go decisions.")
         ),
         
         div(
           class = "column",
-          h4(style = paste0("color: ", colors$accent), icon("dollar sign"), " Budget Forecasting"),
-          p("Duration estimates feed directly into cost projections. Longer trials mean 
-             extended site costs, monitoring, and overhead.")
+          h4(style = paste0("color: ", colors$accent), icon("dollar sign"), " Budget Scenarios"),
+          p("Duration estimates can inform cost projections. Consider generating scenarios 
+             across a range of durations (e.g., predicted ±6 months) rather than relying 
+             on point estimates.")
         ),
         
         div(
           class = "column",
-          h4(style = paste0("color: ", colors$accent), icon("exclamation triangle"), " Risk Assessment"),
-          p("Trials predicted to run significantly longer than planned warrant closer 
-             scrutiny of enrollment assumptions and operational readiness.")
+          h4(style = paste0("color: ", colors$accent), icon("exclamation triangle"), " Assumption Testing"),
+          p("Compare predictions to planned timelines. Large discrepancies may indicate 
+             optimistic assumptions worth reviewing—but model limitations mean discrepancies 
+             don't necessarily indicate problems.")
         )
       )
     ),
