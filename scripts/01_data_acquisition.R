@@ -10,6 +10,7 @@
 # ----------------------------------------------------------------------------
 # Setup
 # ----------------------------------------------------------------------------
+library(here)
 library(dplyr)
 library(tidyr)
 library(stringr)
@@ -20,8 +21,8 @@ library(jsonlite)
 library(fs)
 library(tictoc)
 
-# Create output directory
-dir_create("data-raw")
+# Create output directory (all outputs go to app/ folder)
+dir_create(here("app", "data-raw"))
 
 # Define null coalescing operator (if not available from rlang)
 `%||%` <- function(x, y) if (is.null(x)) y else x
@@ -207,14 +208,14 @@ cat("\nConditions:", paste(first_trial$conditionsModule$conditions[1:min(3, leng
 # 2. Parse nested JSON into flat data frame
 # 3. Handle missing data and inconsistencies
 # 4. Filter to trials with complete enrollment data
-# 5. Save processed data to data-raw/
+# 5. Save processed data to app/data-raw/
 
 # ----------------------------------------------------------------------------
 # Save sample data for offline exploration
 # ----------------------------------------------------------------------------
 
-saveRDS(sample_data, "data-raw/sample_api_response.rds")
-cat("\n✅ Sample data saved to: data-raw/sample_api_response.rds\n")
+saveRDS(sample_data, here("app", "data-raw", "sample_api_response.rds"))
+cat("\n✅ Sample data saved to: app/data-raw/sample_api_response.rds\n")
 
 # ----------------------------------------------------------------------------
 # Key fields we need for forecasting

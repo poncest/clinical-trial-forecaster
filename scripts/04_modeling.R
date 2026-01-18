@@ -10,6 +10,7 @@
 # ----------------------------------------------------------------------------
 # Setup
 # ----------------------------------------------------------------------------
+library(here)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -24,9 +25,9 @@ library(fs)
 # Set seed for reproducibility
 set.seed(2026)
 
-# Create output directories
-dir_create("models")
-dir_create("docs")
+# Create output directories (all outputs go to app/ folder)
+dir_create(here("app", "models"))
+dir_create(here("app", "docs"))
 
 # Tidymodels settings
 tidymodels_prefer()  # Resolve function conflicts in favor of tidymodels
@@ -45,8 +46,8 @@ cat("============================================================\n\n")
 cat("STEP 1: Load Data & Recipe\n")
 cat("------------------------------------------------------------\n\n")
 
-trials_features <- readRDS("data-raw/modeling/trials_features.rds")
-trial_recipe <- readRDS("data-raw/modeling/trial_recipe.rds")
+trials_features <- readRDS(here("app", "data-raw", "modeling", "trials_features.rds"))
+trial_recipe <- readRDS(here("app", "data-raw", "modeling", "trial_recipe.rds"))
 
 cat("📊 Loaded", nrow(trials_features), "trials with", ncol(trials_features), "features\n")
 cat("📊 Target: log_duration (log-transformed trial duration in months)\n\n")
@@ -342,8 +343,8 @@ cat("📊 Model Comparison (CV Performance):\n\n")
 print(comparison_table)
 
 # Save comparison table
-saveRDS(comparison_table, "models/model_comparison.rds")
-write.csv(comparison_table, "models/model_comparison.csv", row.names = FALSE)
+saveRDS(comparison_table, here("app", "models", "model_comparison.rds"))
+write.csv(comparison_table, here("app", "models", "model_comparison.csv"), row.names = FALSE)
 
 # ----------------------------------------------------------------------------
 # Step 10: Select Best Model
@@ -441,7 +442,7 @@ if (best_model_name %in% c("Random Forest", "XGBoost")) {
   print(head(importance_df, 10))
   
   # Save importance
-  saveRDS(importance_df, "models/feature_importance.rds")
+  saveRDS(importance_df, here("app", "models", "feature_importance.rds"))
   
   # Plot
   p_importance <- importance_df |>
@@ -457,8 +458,8 @@ if (best_model_name %in% c("Random Forest", "XGBoost")) {
     theme_minimal() +
     theme(plot.title = element_text(face = "bold"))
   
-  ggsave("docs/10_feature_importance.png", p_importance, width = 8, height = 6, dpi = 150)
-  cat("\n📊 Saved: docs/10_feature_importance.png\n")
+  ggsave(here("app", "docs", "10_feature_importance.png"), p_importance, width = 8, height = 6, dpi = 150)
+  cat("\n📊 Saved: app/docs/10_feature_importance.png\n")
   
 } else {
   # For linear models, use coefficients
@@ -470,7 +471,7 @@ if (best_model_name %in% c("Random Forest", "XGBoost")) {
   cat("📊 Top 10 Coefficient Magnitudes:\n")
   print(head(importance_df |> select(term, estimate, abs_estimate), 10))
   
-  saveRDS(importance_df, "models/feature_importance.rds")
+  saveRDS(importance_df, here("app", "models", "feature_importance.rds"))
 }
 
 # ----------------------------------------------------------------------------
@@ -494,8 +495,8 @@ p1 <- ggplot(test_predictions, aes(x = log_duration, y = .pred)) +
   theme_minimal() +
   theme(plot.title = element_text(face = "bold"))
 
-ggsave("docs/11_actual_vs_predicted_log.png", p1, width = 8, height = 6, dpi = 150)
-cat("📊 Saved: docs/11_actual_vs_predicted_log.png\n")
+ggsave(here("app", "docs", "11_actual_vs_predicted_log.png"), p1, width = 8, height = 6, dpi = 150)
+cat("📊 Saved: app/docs/11_actual_vs_predicted_log.png\n")
 
 # Actual vs Predicted (months)
 p2 <- ggplot(test_predictions, aes(x = actual_months, y = predicted_months)) +
@@ -512,8 +513,8 @@ p2 <- ggplot(test_predictions, aes(x = actual_months, y = predicted_months)) +
   theme_minimal() +
   theme(plot.title = element_text(face = "bold"))
 
-ggsave("docs/12_actual_vs_predicted_months.png", p2, width = 8, height = 6, dpi = 150)
-cat("📊 Saved: docs/12_actual_vs_predicted_months.png\n")
+ggsave(here("app", "docs", "12_actual_vs_predicted_months.png"), p2, width = 8, height = 6, dpi = 150)
+cat("📊 Saved: app/docs/12_actual_vs_predicted_months.png\n")
 
 # Residual plot
 p3 <- ggplot(test_predictions, aes(x = .pred, y = log_duration - .pred)) +
@@ -528,8 +529,8 @@ p3 <- ggplot(test_predictions, aes(x = .pred, y = log_duration - .pred)) +
   theme_minimal() +
   theme(plot.title = element_text(face = "bold"))
 
-ggsave("docs/13_residual_plot.png", p3, width = 8, height = 6, dpi = 150)
-cat("📊 Saved: docs/13_residual_plot.png\n")
+ggsave(here("app", "docs", "13_residual_plot.png"), p3, width = 8, height = 6, dpi = 150)
+cat("📊 Saved: app/docs/13_residual_plot.png\n")
 
 # Residual distribution
 p4 <- ggplot(test_predictions, aes(x = residual_months)) +
@@ -544,8 +545,8 @@ p4 <- ggplot(test_predictions, aes(x = residual_months)) +
   theme_minimal() +
   theme(plot.title = element_text(face = "bold"))
 
-ggsave("docs/14_residual_distribution.png", p4, width = 8, height = 6, dpi = 150)
-cat("📊 Saved: docs/14_residual_distribution.png\n")
+ggsave(here("app", "docs", "14_residual_distribution.png"), p4, width = 8, height = 6, dpi = 150)
+cat("📊 Saved: app/docs/14_residual_distribution.png\n")
 
 # ----------------------------------------------------------------------------
 # Step 14: Save Final Model & Objects
@@ -556,18 +557,18 @@ cat("STEP 14: Save Final Model & Objects\n")
 cat("------------------------------------------------------------\n\n")
 
 # Save final fitted workflow (for deployment)
-saveRDS(final_fit, "models/final_fit.rds")
-cat("✅ Final fit saved: models/final_fit.rds\n")
+saveRDS(final_fit, here("app", "models", "final_fit.rds"))
+cat("✅ Final fit saved: app/models/final_fit.rds\n")
 
 # Extract and save just the model (lighter weight)
 final_workflow_fitted <- extract_workflow(final_fit)
-saveRDS(final_workflow_fitted, "models/final_workflow.rds")
-cat("✅ Final workflow saved: models/final_workflow.rds\n")
+saveRDS(final_workflow_fitted, here("app", "models", "final_workflow.rds"))
+cat("✅ Final workflow saved: app/models/final_workflow.rds\n")
 
 # Save test predictions
-saveRDS(test_predictions, "models/test_predictions.rds")
-write.csv(test_predictions, "models/test_predictions.csv", row.names = FALSE)
-cat("✅ Test predictions saved: models/test_predictions.csv\n")
+saveRDS(test_predictions, here("app", "models", "test_predictions.rds"))
+write.csv(test_predictions, here("app", "models", "test_predictions.csv"), row.names = FALSE)
+cat("✅ Test predictions saved: app/models/test_predictions.csv\n")
 
 # Save all tuning results (for documentation)
 tuning_results <- list(
@@ -576,8 +577,8 @@ tuning_results <- list(
   random_forest = rf_results,
   xgboost = xgb_results
 )
-saveRDS(tuning_results, "models/all_tuning_results.rds")
-cat("✅ All tuning results saved: models/all_tuning_results.rds\n")
+saveRDS(tuning_results, here("app", "models", "all_tuning_results.rds"))
+cat("✅ All tuning results saved: app/models/all_tuning_results.rds\n")
 
 # ----------------------------------------------------------------------------
 # Step 15: Generate Model Summary Report
@@ -618,23 +619,23 @@ cat("✅ Modeling Complete!\n")
 cat("============================================================\n\n")
 
 cat("📁 Files Created:\n")
-cat("   models/final_fit.rds              (complete final fit object)\n")
-cat("   models/final_workflow.rds         (fitted workflow for predictions)\n")
-cat("   models/model_comparison.csv       (all model metrics)\n")
-cat("   models/test_predictions.csv       (test set predictions)\n")
-cat("   models/feature_importance.rds     (feature importance scores)\n")
-cat("   models/all_tuning_results.rds     (full tuning history)\n")
-cat("   docs/10_feature_importance.png\n")
-cat("   docs/11_actual_vs_predicted_log.png\n")
-cat("   docs/12_actual_vs_predicted_months.png\n")
-cat("   docs/13_residual_plot.png\n")
-cat("   docs/14_residual_distribution.png\n")
+cat("   app/models/final_fit.rds              (complete final fit object)\n")
+cat("   app/models/final_workflow.rds         (fitted workflow for predictions)\n")
+cat("   app/models/model_comparison.csv       (all model metrics)\n")
+cat("   app/models/test_predictions.csv       (test set predictions)\n")
+cat("   app/models/feature_importance.rds     (feature importance scores)\n")
+cat("   app/models/all_tuning_results.rds     (full tuning history)\n")
+cat("   app/docs/10_feature_importance.png\n")
+cat("   app/docs/11_actual_vs_predicted_log.png\n")
+cat("   app/docs/12_actual_vs_predicted_months.png\n")
+cat("   app/docs/13_residual_plot.png\n")
+cat("   app/docs/14_residual_distribution.png\n")
 
 cat("\n🎯 Next Steps:\n")
 cat("   1. Review model performance and diagnostic plots\n")
-cat("   2. Copy final_workflow.rds to app/data/ for dashboard\n")
-cat("   3. Build Shiny app modules\n")
-cat("   4. Create prediction interface\n")
+cat("   2. Model is already in app/models/ - no copying needed!\n")
+cat("   3. Update app modules with new model\n")
+cat("   4. Test prediction interface\n")
 
 cat("\n============================================================\n")
 cat("   Ready to build dashboard with trained model!\n")

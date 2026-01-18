@@ -132,7 +132,9 @@ mod_methods_ui <- function(id) {
           ),
           p(style = paste0("font-size: 0.9em; color: ", colors$text_secondary),
             "XGBoost was selected for best CV performance (R² = 0.83). 
-             Registration-to-start accounts for 91% of feature importance.")
+             Registration-to-start is the strongest signal in this dataset and 
+             dominates importance metrics; it may reflect a mix of startup 
+             complexity and registry update patterns.")
         )
       )
     ),

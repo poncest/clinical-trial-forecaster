@@ -113,15 +113,48 @@ mod_forecaster_server <- function(id, trials_data, ref_stats, phase_levels, spon
     # Store prediction
     pred_val <- reactiveVal(NULL)
     
-    # Button click
+    # Button click - USE THE ACTUAL TRAINED MODEL (Option A: Raw Inputs)
     observeEvent(input$predict, {
-      log_duration <- 3.2 + input$reg_to_start * 0.0008 + log(input$enrollment) * 0.08 + log(input$sites + 1) * 0.05
-      if (input$countries > 1) log_duration <- log_duration + log(input$countries) * 0.04
       
-      phase_effect <- switch(input$phase, "Phase 2" = -0.15, "Phase 1/2" = -0.10, "Phase 2/3" = 0.05, "Phase 3" = 0.12, 0)
-      sponsor_effect <- switch(input$sponsor, "Industry" = 0.05, "Academic/Other" = -0.05, "NIH" = 0.0, "Government/Network" = 0.02, 0)
+      # --- Input Validation ---
+      req(input$enrollment > 0, input$sites >= 1, input$countries >= 1)
       
-      pred_val(exp(log_duration + phase_effect + sponsor_effect))
+      # --- Pass Raw Inputs (Recipe handles all transforms) ---
+      # This is Option A architecture: single source of truth
+      # The recipe does: log transforms, derived features, normalization, encoding
+      new_data <- tibble::tibble(
+        enrollment_count = as.numeric(input$enrollment),
+        n_sites = as.numeric(input$sites),
+        n_countries = as.numeric(input$countries),
+        registration_to_start = as.numeric(input$reg_to_start),
+        phase_simple = factor(input$phase, levels = phase_levels),
+        sponsor_simple = factor(input$sponsor, levels = sponsor_levels)
+      )
+      
+      # --- Schema Validation ---
+      required_cols <- c("enrollment_count", "n_sites", "n_countries", 
+                         "registration_to_start", "phase_simple", "sponsor_simple")
+      
+      if (!all(required_cols %in% names(new_data))) {
+        showNotification("Schema mismatch - contact developer", type = "error")
+        return(NULL)
+      }
+      
+      # --- Make Prediction ---
+      tryCatch({
+        # Predict returns log_duration; back-transform to months
+        pred_log <- predict(final_workflow, new_data)$.pred
+        pred_months <- exp(pred_log)
+        
+        # Bound to reasonable range (matches training data bounds)
+        pred_months <- max(1, min(180, pred_months))
+        
+        pred_val(pred_months)
+        
+      }, error = function(e) {
+        showNotification(paste("Prediction error:", e$message), type = "error")
+        pred_val(NULL)
+      })
     })
     
     # Main prediction display

@@ -50,11 +50,11 @@ colors <- list(
 # -----------------------------------------------------------------------------
 message("Loading data files...")
 
-final_workflow <- readRDS("data/processed/final_workflow.rds")
-trials_data <- readRDS("data/processed/trials_features.rds")
-feature_importance <- readRDS("data/processed/feature_importance.rds")
-model_comparison <- read.csv("data/processed/model_comparison.csv")
-test_predictions <- read.csv("data/processed/test_predictions.csv")
+final_workflow <- readRDS("models/final_workflow.rds")
+trials_data <- readRDS("data-raw/modeling/trials_features.rds")
+feature_importance <- readRDS("models/feature_importance.rds")
+model_comparison <- read.csv("models/model_comparison.csv")
+test_predictions <- read.csv("models/test_predictions.csv")
 
 message("Data loaded.")
 
@@ -100,73 +100,21 @@ sponsor_levels <- levels(trials_data$sponsor_simple)
 # Model Metrics (from training - XGBoost, Stage 2 cohort)
 # -----------------------------------------------------------------------------
 model_metrics <- list(
-  r_squared = 0.838,
-  rmse = 0.575,
-  mae = 0.433,
-  median_abs_error_months = 8.9,
-  mean_abs_error_months = 17.0
+  r_squared = 0.841,
+  rmse = 0.570,
+  mae = 0.430,
+  median_abs_error_months = 7.4,
+  mean_abs_error_months = 16.9
 )
 
 # -----------------------------------------------------------------------------
-# Helper: Predict Duration (Fast Linear Approximation)
 # -----------------------------------------------------------------------------
-# Note: Using linear approximation for instant UX. Coefficients calibrated to
-# XGBoost feature importance (registration_to_start = 91% importance).
-
-predict_duration <- function(enrollment, n_sites, n_countries, 
-                             registration_to_start, phase, sponsor) {
-  
-  # Base log-duration (intercept, calibrated to median ~36 months)
-  log_duration <- 3.2
-  
-  # Registration to start effect (top predictor)
-  log_duration <- log_duration + registration_to_start * 0.0008
-  
-  # Enrollment effect (larger trials run longer)
-  log_duration <- log_duration + log(enrollment) * 0.08
-  
-  # Sites effect (more sites = longer coordination)
-  log_duration <- log_duration + log(n_sites + 1) * 0.05
-  
-  # Enrollment per site burden
-  enrollment_per_site <- enrollment / n_sites
-  if (enrollment_per_site > 10) {
-    log_duration <- log_duration + log(enrollment_per_site) * 0.03
-  }
-  
-  # Countries effect
-  if (n_countries > 1) {
-    log_duration <- log_duration + log(n_countries) * 0.04
-  }
-  
-  # Phase effects
-  phase_effect <- switch(phase,
-                         "Phase 2" = -0.15,
-                         "Phase 1/2" = -0.10,
-                         "Phase 2/3" = 0.05,
-                         "Phase 3" = 0.12,
-                         0
-  )
-  log_duration <- log_duration + phase_effect
-  
-  # Sponsor effects
-  sponsor_effect <- switch(sponsor,
-                           "Industry" = 0.05,
-                           "Academic/Other" = -0.05,
-                           "NIH" = 0.0,
-                           "Government/Network" = 0.02,
-                           0
-  )
-  log_duration <- log_duration + sponsor_effect
-  
-  # Convert back to months
-  predicted_months <- exp(log_duration)
-  
-  # Bound to reasonable range (6 months to 15 years)
-  predicted_months <- max(6, min(180, predicted_months))
-  
-  return(predicted_months)
-}
+# DEPRECATED: predict_duration function removed in Stage 2.5
+# -----------------------------------------------------------------------------
+# The mod_forecaster.R module now calls predict(final_workflow, new_data)
+# directly, using proper feature engineering that matches the training pipeline.
+# This eliminates the schema mismatch risk from the old linear approximation.
+# -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 # Helper: Format Duration for Display
@@ -192,7 +140,7 @@ format_duration <- function(months) {
 app_info <- list(
   title = "Clinical Trial Duration Forecaster",
   subtitle = "Predictive Analytics for Trial Planning",
-  version = "1.1.0",  # Version bump for Stage 2 fixes
+  version = "1.2.0",  # Stage 2.5: Real model integration (not heuristic)
   data_source = "ClinicalTrials.gov",
   n_trials = nrow(trials_data),
   therapeutic_area = "Oncology",

@@ -10,6 +10,7 @@
 # ----------------------------------------------------------------------------
 # Setup
 # ----------------------------------------------------------------------------
+library(here)
 library(dplyr)
 library(tidyr)
 library(stringr)
@@ -20,9 +21,9 @@ library(scales)
 library(tidymodels)
 library(fs)
 
-# Create output directory
-dir_create("data-raw/modeling")
-dir_create("docs")
+# Create output directories (all outputs go to app/ folder)
+dir_create(here("app", "data-raw", "modeling"))
+dir_create(here("app", "docs"))
 
 cat("\n")
 cat("============================================================\n")
@@ -36,7 +37,7 @@ cat("============================================================\n\n")
 cat("STEP 1: Load Clean Data\n")
 cat("------------------------------------------------------------\n\n")
 
-trials_clean <- readRDS("data-raw/oncology_trials_clean.rds")
+trials_clean <- readRDS(here("app", "data-raw", "oncology_trials_clean.rds"))
 
 cat("📊 Loaded", nrow(trials_clean), "trials with", ncol(trials_clean), "columns\n")
 cat("📊 Duration range:", round(min(trials_clean$duration_months), 1), "-", 
@@ -228,66 +229,79 @@ sort(correlations["log_duration", ], decreasing = TRUE) |>
   print()
 
 # ----------------------------------------------------------------------------
-# Step 6: Create Tidymodels Recipe
+# Step 6: Create Tidymodels Recipe (Option A: Raw Inputs)
 # ----------------------------------------------------------------------------
 
 cat("\n")
 cat("STEP 6: Create Tidymodels Recipe\n")
 cat("------------------------------------------------------------\n\n")
 
-# Define predictors for modeling
+# Define RAW predictors (transforms happen inside recipe)
+# This is the "single source of truth" approach - app passes raw values,
+# recipe handles all feature engineering identically to training.
 predictor_vars <- c(
-  # Numeric (will be normalized)
-  "log_enrollment",
-  "log_sites", 
+  # Raw numeric inputs
+  "enrollment_count",
+  "n_sites", 
   "n_countries",
-  "log_enrollment_per_site",
   "registration_to_start",
   
-  # Categorical (will be dummy encoded)
+  # Categorical (already factors)
   "phase_simple",
-  "sponsor_simple",
-  "is_multisite",
-  "is_multinational"
+  "sponsor_simple"
 )
 
-# Create recipe
-# Note: Recipe is created but not prepped - that happens during modeling
-# This allows proper train/test handling
-
+# Create recipe with transforms INSIDE (Option A architecture)
+# This eliminates schema drift risk between training and inference
 trial_recipe <- recipe(
-  log_duration ~ log_enrollment + log_sites + n_countries + 
-    log_enrollment_per_site + registration_to_start +
-    phase_simple + sponsor_simple + is_multisite + is_multinational,
+  log_duration ~ enrollment_count + n_sites + n_countries + 
+    registration_to_start + phase_simple + sponsor_simple,
   data = trials_features
 ) |>
-  # Convert logical to numeric FIRST (for glmnet/xgboost compatibility)
+  
+  # STEP 1: Create derived features from raw inputs
+  # These transforms are now part of the recipe, not pre-computed
   step_mutate(
-    is_multisite = as.integer(is_multisite),
-    is_multinational = as.integer(is_multinational)
+    # Log transforms (with offsets for numerical stability)
+    log_enrollment = log(enrollment_count),
+    log_sites = log(n_sites + 1),
+    log_enrollment_per_site = log((enrollment_count / (n_sites + 1)) + 1),
+    
+    # Binary flags (as integer for model compatibility)
+    is_multisite = as.integer(n_sites > 1),
+    is_multinational = as.integer(n_countries > 1)
   ) |>
-  # Handle missing values
+  
+  # STEP 2: Remove raw inputs that have been transformed
+  # Keep n_countries (used directly), registration_to_start (used directly)
+  step_rm(enrollment_count, n_sites) |>
+  
+  # STEP 3: Handle missing values
   step_impute_median(all_numeric_predictors()) |>
   step_impute_mode(all_nominal_predictors()) |>
   
-  # Normalize numeric predictors (z-score standardization)
+  # STEP 4: Normalize numeric predictors (z-score standardization)
   step_normalize(all_numeric_predictors()) |>
   
-  # Create dummy variables for categoricals
+  # STEP 5: Create dummy variables for categoricals
   step_dummy(all_nominal_predictors(), one_hot = FALSE) |>
   
-  # Remove zero-variance predictors
+  # STEP 6: Remove zero-variance predictors
   step_zv(all_predictors())
 
-cat("✅ Recipe created with steps:\n")
-cat("   1. step_impute_median() - Handle missing numerics\n")
-cat("   2. step_impute_mode() - Handle missing categoricals\n")
-cat("   3. step_normalize() - Z-score standardization for numerics\n")
-cat("   4. step_dummy() - One-hot encoding for categoricals\n")
-cat("   5. step_zv() - Remove zero-variance predictors\n")
+cat("✅ Recipe created with Option A architecture (raw inputs):\n")
+cat("   1. step_mutate() - Create log transforms and binary flags\n")
+cat("   2. step_rm() - Remove raw inputs after transformation\n")
+cat("   3. step_impute_median() - Handle missing numerics\n")
+cat("   4. step_impute_mode() - Handle missing categoricals\n")
+cat("   5. step_normalize() - Z-score standardization for numerics\n")
+cat("   6. step_dummy() - One-hot encoding for categoricals\n")
+cat("   7. step_zv() - Remove zero-variance predictors\n")
 
 cat("\n📊 Target variable: log_duration (log-transformed months)\n")
-cat("📊 Predictors:", length(predictor_vars), "features\n")
+cat("📊 Raw inputs:", length(predictor_vars), "features\n")
+cat("📊 Derived features: log_enrollment, log_sites, log_enrollment_per_site, is_multisite, is_multinational\n")
+cat("\n⚠️  IMPORTANT: App now passes raw values; recipe handles all transforms.\n")
 
 # ----------------------------------------------------------------------------
 # Step 7: Visualize Engineered Features
@@ -309,7 +323,7 @@ p1 <- ggplot(trials_features, aes(x = log_duration)) +
   theme_minimal() +
   theme(plot.title = element_text(face = "bold"))
 
-ggsave("docs/05_log_duration_distribution.png", p1, width = 8, height = 5, dpi = 150)
+ggsave(here("app", "docs", "05_log_duration_distribution.png"), p1, width = 8, height = 5, dpi = 150)
 cat("📊 Saved: docs/05_log_duration_distribution.png\n")
 
 # Log enrollment vs log duration
@@ -325,7 +339,7 @@ p2 <- ggplot(trials_features, aes(x = log_enrollment, y = log_duration)) +
   theme_minimal() +
   theme(plot.title = element_text(face = "bold"))
 
-ggsave("docs/06_log_enrollment_vs_log_duration.png", p2, width = 8, height = 5, dpi = 150)
+ggsave(here("app", "docs", "06_log_enrollment_vs_log_duration.png"), p2, width = 8, height = 5, dpi = 150)
 cat("📊 Saved: docs/06_log_enrollment_vs_log_duration.png\n")
 
 # Duration by sponsor type
@@ -343,7 +357,7 @@ p3 <- ggplot(trials_features, aes(x = sponsor_simple, y = duration_months, fill 
     axis.text.x = element_text(angle = 15, hjust = 1)
   )
 
-ggsave("docs/07_duration_by_sponsor.png", p3, width = 8, height = 5, dpi = 150)
+ggsave(here("app", "docs", "07_duration_by_sponsor.png"), p3, width = 8, height = 5, dpi = 150)
 cat("📊 Saved: docs/07_duration_by_sponsor.png\n")
 
 # Duration by size category
@@ -360,7 +374,7 @@ p4 <- ggplot(trials_features, aes(x = size_category, y = duration_months, fill =
     legend.position = "none"
   )
 
-ggsave("docs/08_duration_by_size.png", p4, width = 8, height = 5, dpi = 150)
+ggsave(here("app", "docs", "08_duration_by_size.png"), p4, width = 8, height = 5, dpi = 150)
 cat("📊 Saved: docs/08_duration_by_size.png\n")
 
 # Geographic scope vs duration
@@ -378,7 +392,7 @@ p5 <- ggplot(trials_features, aes(x = geo_scope, y = duration_months, fill = geo
     axis.text.x = element_text(angle = 15, hjust = 1)
   )
 
-ggsave("docs/09_duration_by_geography.png", p5, width = 8, height = 5, dpi = 150)
+ggsave(here("app", "docs", "09_duration_by_geography.png"), p5, width = 8, height = 5, dpi = 150)
 cat("📊 Saved: docs/09_duration_by_geography.png\n")
 
 # ----------------------------------------------------------------------------
@@ -390,46 +404,55 @@ cat("STEP 8: Save Outputs\n")
 cat("------------------------------------------------------------\n\n")
 
 # Save feature-engineered dataset
-saveRDS(trials_features, "data-raw/modeling/trials_features.rds")
-cat("✅ Feature dataset saved: data-raw/modeling/trials_features.rds\n")
+saveRDS(trials_features, here("app", "data-raw", "modeling", "trials_features.rds"))
+cat("✅ Feature dataset saved: app/data-raw/modeling/trials_features.rds\n")
 
 # Save recipe (unprepped - will be prepped during modeling)
-saveRDS(trial_recipe, "data-raw/modeling/trial_recipe.rds")
-cat("✅ Recipe saved: data-raw/modeling/trial_recipe.rds\n")
+saveRDS(trial_recipe, here("app", "data-raw", "modeling", "trial_recipe.rds"))
+cat("✅ Recipe saved: app/data-raw/modeling/trial_recipe.rds\n")
 
-# Save feature metadata for documentation
+# Save feature metadata for documentation (Option A: raw inputs → derived features)
 feature_metadata <- tibble(
   feature = c(
-    "log_enrollment", "log_sites", "n_countries", "log_enrollment_per_site",
-    "registration_to_start", "phase_simple", "sponsor_simple", 
+    # Raw inputs (what app passes)
+    "enrollment_count", "n_sites", "n_countries", "registration_to_start",
+    "phase_simple", "sponsor_simple",
+    # Derived features (computed by recipe)
+    "log_enrollment", "log_sites", "log_enrollment_per_site",
     "is_multisite", "is_multinational"
   ),
   type = c(
-    "numeric", "numeric", "numeric", "numeric",
-    "numeric", "categorical", "categorical",
-    "binary", "binary"
+    "raw_numeric", "raw_numeric", "raw_numeric", "raw_numeric",
+    "raw_categorical", "raw_categorical",
+    "derived_numeric", "derived_numeric", "derived_numeric",
+    "derived_binary", "derived_binary"
   ),
   description = c(
-    "Log of target enrollment count",
-    "Log of number of sites + 1",
-    "Number of countries",
-    "Log of enrollment per site ratio",
-    "Days from registration to trial start",
-    "Simplified phase (Phase 2, Phase 3, Phase 1/2, Phase 2/3)",
-    "Simplified sponsor type (Industry, Academic, NIH, Government)",
-    "TRUE if more than 1 site",
-    "TRUE if more than 1 country"
+    "Target enrollment count (raw input)",
+    "Number of sites (raw input)",
+    "Number of countries (raw input, used directly)",
+    "Days from registration to trial start (raw input, used directly)",
+    "Simplified phase (raw input)",
+    "Simplified sponsor type (raw input)",
+    "log(enrollment_count) - computed by recipe",
+    "log(n_sites + 1) - computed by recipe",
+    "log(enrollment_count / (n_sites + 1) + 1) - computed by recipe",
+    "as.integer(n_sites > 1) - computed by recipe",
+    "as.integer(n_countries > 1) - computed by recipe"
   ),
   preprocessing = c(
-    "Normalize (z-score)", "Normalize (z-score)", "Normalize (z-score)", "Normalize (z-score)",
-    "Normalize (z-score)", "Dummy encode", "Dummy encode",
-    "Dummy encode", "Dummy encode"
+    "Input only (removed after transform)", "Input only (removed after transform)", 
+    "Normalize (z-score)", "Normalize (z-score)",
+    "Dummy encode", "Dummy encode",
+    "Normalize (z-score)", "Normalize (z-score)", "Normalize (z-score)",
+    "None (integer)", "None (integer)"
   )
 )
 
-saveRDS(feature_metadata, "data-raw/modeling/feature_metadata.rds")
-write.csv(feature_metadata, "data-raw/modeling/feature_metadata.csv", row.names = FALSE)
-cat("✅ Feature metadata saved: data-raw/modeling/feature_metadata.csv\n")
+saveRDS(feature_metadata, here("app", "data-raw", "modeling", "feature_metadata.rds"))
+write.csv(feature_metadata, here("app", "data-raw", "modeling", "feature_metadata.csv"), row.names = FALSE)
+cat("✅ Feature metadata saved: app/data-raw/modeling/feature_metadata.csv\n")
+cat("   (Documents both raw inputs and derived features for Option A architecture)\n")
 
 # ----------------------------------------------------------------------------
 # Final Summary
@@ -447,25 +470,29 @@ cat("   Features created: ", ncol(trials_features) - ncol(trials_clean), " new f
 cat("   Total columns: ", ncol(trials_features), "\n")
 
 cat("\n📁 Files Created:\n")
-cat("   data-raw/modeling/trials_features.rds    (modeling-ready dataset)\n")
-cat("   data-raw/modeling/trial_recipe.rds       (tidymodels recipe)\n")
-cat("   data-raw/modeling/feature_metadata.csv   (feature documentation)\n")
-cat("   docs/05_log_duration_distribution.png\n")
-cat("   docs/06_log_enrollment_vs_log_duration.png\n")
-cat("   docs/07_duration_by_sponsor.png\n")
-cat("   docs/08_duration_by_size.png\n")
-cat("   docs/09_duration_by_geography.png\n")
+cat("   app/data-raw/modeling/trials_features.rds    (modeling-ready dataset)\n")
+cat("   app/data-raw/modeling/trial_recipe.rds       (tidymodels recipe)\n")
+cat("   app/data-raw/modeling/feature_metadata.csv   (feature documentation)\n")
+cat("   app/docs/05_log_duration_distribution.png\n")
+cat("   app/docs/06_log_enrollment_vs_log_duration.png\n")
+cat("   app/docs/07_duration_by_sponsor.png\n")
+cat("   app/docs/08_duration_by_size.png\n")
+cat("   app/docs/09_duration_by_geography.png\n")
 
-cat("\n📋 Recipe Summary:\n")
-cat("   Target: log_duration (log-transformed trial duration)\n
-")
-cat("   Predictors: 9 features\n")
-cat("   Preprocessing: Imputation → Normalization → Dummy encoding → ZV removal\n")
+cat("\n📋 Recipe Summary (Option A Architecture):\n")
+cat("   Target: log_duration (log-transformed trial duration)\n")
+cat("   Raw inputs: 6 features (enrollment_count, n_sites, n_countries,\n")
+cat("               registration_to_start, phase_simple, sponsor_simple)\n")
+cat("   Derived features: 5 (log_enrollment, log_sites, log_enrollment_per_site,\n")
+cat("                     is_multisite, is_multinational)\n")
+cat("   Preprocessing: Transforms → Remove raw → Impute → Normalize → Dummy → ZV\n")
+cat("\n⚠️  App passes RAW inputs; recipe handles ALL transforms.\n")
 
 cat("\n🎯 Next Steps:\n")
 cat("   1. Run 04_modeling.R to train and evaluate models\n")
 cat("   2. Compare baseline (linear) vs advanced (RF, XGBoost) models\n")
-cat("   3. Select best model for dashboard\n")
+cat("   3. Model outputs go directly to app/models/\n")
+cat("   4. App mod_forecaster.R passes raw inputs to predict()\n")
 
 cat("\n============================================================\n")
 cat("   trials_features and trial_recipe objects available in environment\n")

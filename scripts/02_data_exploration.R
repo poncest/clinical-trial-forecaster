@@ -10,6 +10,7 @@
 # ----------------------------------------------------------------------------
 # Setup
 # ----------------------------------------------------------------------------
+library(here)
 library(dplyr)
 library(tidyr)
 library(purrr)
@@ -23,9 +24,9 @@ library(tictoc)
 library(ggplot2)
 library(scales)
 
-# Create output directories
-dir_create("data-raw/cache")
-dir_create("docs")
+# Create output directories (all outputs go to app/ folder)
+dir_create(here("app", "data-raw", "cache"))
+dir_create(here("app", "docs"))
 
 # Null coalescing operator
 `%||%` <- function(x, y) if (is.null(x)) y else x
@@ -309,8 +310,8 @@ cat("   Phase 3 trials:", length(phase3_trials), "\n")
 cat("   Total trials:", length(all_trials), "\n")
 
 # Save raw data
-saveRDS(all_trials, "data-raw/cache/oncology_trials_raw.rds")
-cat("\n✅ Raw data saved to: data-raw/cache/oncology_trials_raw.rds\n")
+saveRDS(all_trials, here("app", "data-raw", "cache", "oncology_trials_raw.rds"))
+cat("\n✅ Raw data saved to: app/data-raw/cache/oncology_trials_raw.rds\n")
 
 # ----------------------------------------------------------------------------
 # Step 2: Extract Fields to Data Frame
@@ -325,8 +326,8 @@ trials_df <- extract_all_trials(all_trials)
 toc()
 
 # Save extracted data
-saveRDS(trials_df, "data-raw/cache/oncology_trials_extracted.rds")
-cat("\n✅ Extracted data saved to: data-raw/cache/oncology_trials_extracted.rds\n")
+saveRDS(trials_df, here("app", "data-raw", "cache", "oncology_trials_extracted.rds"))
+cat("\n✅ Extracted data saved to: app/data-raw/cache/oncology_trials_extracted.rds\n")
 
 # ----------------------------------------------------------------------------
 # Step 3: Data Quality Assessment
@@ -442,12 +443,12 @@ cat("\n")
 cat("STEP 6: Save Clean Dataset\n")
 cat("------------------------------------------------------------\n\n")
 
-saveRDS(trials_clean, "data-raw/oncology_trials_clean.rds")
-cat("✅ Clean dataset saved to: data-raw/oncology_trials_clean.rds\n")
+saveRDS(trials_clean, here("app", "data-raw", "oncology_trials_clean.rds"))
+cat("✅ Clean dataset saved to: app/data-raw/oncology_trials_clean.rds\n")
 
 # Also save as CSV for inspection
-write.csv(trials_clean, "data-raw/oncology_trials_clean.csv", row.names = FALSE)
-cat("✅ CSV version saved to: data-raw/oncology_trials_clean.csv\n")
+write.csv(trials_clean, here("app", "data-raw", "oncology_trials_clean.csv"), row.names = FALSE)
+cat("✅ CSV version saved to: app/data-raw/oncology_trials_clean.csv\n")
 
 # ----------------------------------------------------------------------------
 # Step 7: Quick Visualizations
@@ -469,8 +470,8 @@ p1 <- ggplot(trials_clean, aes(x = duration_months)) +
   theme_minimal() +
   theme(plot.title = element_text(face = "bold"))
 
-ggsave("docs/01_duration_distribution.png", p1, width = 8, height = 5, dpi = 150)
-cat("📊 Saved: docs/01_duration_distribution.png\n")
+ggsave(here("app", "docs", "01_duration_distribution.png"), p1, width = 8, height = 5, dpi = 150)
+cat("📊 Saved: app/docs/01_duration_distribution.png\n")
 
 # Duration by phase
 p2 <- ggplot(trials_clean, aes(x = phase, y = duration_months, fill = phase)) +
@@ -486,8 +487,8 @@ p2 <- ggplot(trials_clean, aes(x = phase, y = duration_months, fill = phase)) +
     legend.position = "none"
   )
 
-ggsave("docs/02_duration_by_phase.png", p2, width = 8, height = 5, dpi = 150)
-cat("📊 Saved: docs/02_duration_by_phase.png\n")
+ggsave(here("app", "docs", "02_duration_by_phase.png"), p2, width = 8, height = 5, dpi = 150)
+cat("📊 Saved: app/docs/02_duration_by_phase.png\n")
 
 # Enrollment vs Duration
 p3 <- ggplot(trials_clean, aes(x = enrollment_count, y = duration_months)) +
@@ -503,8 +504,8 @@ p3 <- ggplot(trials_clean, aes(x = enrollment_count, y = duration_months)) +
   theme_minimal() +
   theme(plot.title = element_text(face = "bold"))
 
-ggsave("docs/03_enrollment_vs_duration.png", p3, width = 8, height = 5, dpi = 150)
-cat("📊 Saved: docs/03_enrollment_vs_duration.png\n")
+ggsave(here("app", "docs", "03_enrollment_vs_duration.png"), p3, width = 8, height = 5, dpi = 150)
+cat("📊 Saved: app/docs/03_enrollment_vs_duration.png\n")
 
 # Sites vs Duration
 p4 <- ggplot(trials_clean |> filter(n_sites <= 200), aes(x = n_sites, y = duration_months)) +
@@ -519,8 +520,8 @@ p4 <- ggplot(trials_clean |> filter(n_sites <= 200), aes(x = n_sites, y = durati
   theme_minimal() +
   theme(plot.title = element_text(face = "bold"))
 
-ggsave("docs/04_sites_vs_duration.png", p4, width = 8, height = 5, dpi = 150)
-cat("📊 Saved: docs/04_sites_vs_duration.png\n")
+ggsave(here("app", "docs", "04_sites_vs_duration.png"), p4, width = 8, height = 5, dpi = 150)
+cat("📊 Saved: app/docs/04_sites_vs_duration.png\n")
 
 # ----------------------------------------------------------------------------
 # Final Summary
@@ -532,14 +533,14 @@ cat("✅ Data Exploration Complete!\n")
 cat("============================================================\n\n")
 
 cat("📁 Files Created:\n")
-cat("   data-raw/cache/oncology_trials_raw.rds      (raw API response)\n")
-cat("   data-raw/cache/oncology_trials_extracted.rds (all fields)\n")
-cat("   data-raw/oncology_trials_clean.rds          (modeling-ready)\n")
-cat("   data-raw/oncology_trials_clean.csv          (for inspection)\n")
-cat("   docs/01_duration_distribution.png\n")
-cat("   docs/02_duration_by_phase.png\n")
-cat("   docs/03_enrollment_vs_duration.png\n")
-cat("   docs/04_sites_vs_duration.png\n")
+cat("   app/data-raw/cache/oncology_trials_raw.rds      (raw API response)\n")
+cat("   app/data-raw/cache/oncology_trials_extracted.rds (all fields)\n")
+cat("   app/data-raw/oncology_trials_clean.rds          (modeling-ready)\n")
+cat("   app/data-raw/oncology_trials_clean.csv          (for inspection)\n")
+cat("   app/docs/01_duration_distribution.png\n")
+cat("   app/docs/02_duration_by_phase.png\n")
+cat("   app/docs/03_enrollment_vs_duration.png\n")
+cat("   app/docs/04_sites_vs_duration.png\n")
 
 cat("\n📊 Dataset Summary:\n")
 cat("   Total trials downloaded:", length(all_trials), "\n")
@@ -547,10 +548,10 @@ cat("   Trials ready for modeling:", nrow(trials_clean), "\n")
 cat("   Features available:", ncol(trials_clean), "\n")
 
 cat("\n🎯 Next Steps:\n")
-cat("   1. Review visualizations in docs/ folder\n")
+cat("   1. Review visualizations in app/docs/ folder\n")
 cat("   2. Examine trials_clean data frame for patterns\n")
-cat("   3. Build 03_feature_engineering.R for model prep\n")
-cat("   4. Start building predictive models\n")
+cat("   3. Run 03_feature_engineering.R for model prep\n")
+cat("   4. Run 04_modeling.R to train models\n")
 
 cat("\n============================================================\n")
 cat("   trials_clean object is available in your environment\n")
