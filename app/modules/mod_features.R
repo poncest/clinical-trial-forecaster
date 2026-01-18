@@ -59,7 +59,7 @@ mod_features_ui <- function(id) {
             label = "Select feature to explore:",
             choices = c(
               "Trial Duration" = "duration_months",
-              "Target Enrollment" = "enrollment",
+              "Target Enrollment" = "enrollment_count",
               "Number of Sites" = "n_sites",
               "Number of Countries" = "n_countries",
               "Registration to Start (days)" = "registration_to_start"
@@ -181,7 +181,7 @@ mod_features_server <- function(id, trials_data, feature_importance) {
         labs(
           x = "Importance Score",
           y = NULL,
-          title = "Feature Importance (Random Forest)"
+          title = "Feature Importance (XGBoost)"
         ) +
         theme_minimal(base_size = 12) +
         theme(
@@ -239,7 +239,8 @@ mod_features_server <- function(id, trials_data, feature_importance) {
           "Later phases typically require more patients and longer follow-up",
           "Different sponsors have different operational capabilities"
         ),
-        stringsAsFactors = FALSE
+        stringsAsFactors = FALSE,
+        check.names = FALSE
       )
       
       reactable(
@@ -304,7 +305,7 @@ mod_features_server <- function(id, trials_data, feature_importance) {
         labs(
           x = names(which(c(
             "duration_months" = "Trial Duration",
-            "enrollment" = "Target Enrollment",
+            "enrollment_count" = "Target Enrollment",
             "n_sites" = "Number of Sites",
             "n_countries" = "Number of Countries",
             "registration_to_start" = "Registration to Start (days)"
@@ -337,12 +338,12 @@ mod_features_server <- function(id, trials_data, feature_importance) {
       values <- values[!is.na(values)]
       
       unit <- switch(input$selected_feature,
-        "duration_months" = " months",
-        "enrollment" = " patients",
-        "n_sites" = " sites",
-        "n_countries" = " countries",
-        "registration_to_start" = " days",
-        ""
+                     "duration_months" = " months",
+                     "enrollment_count" = " patients",
+                     "n_sites" = " sites",
+                     "n_countries" = " countries",
+                     "registration_to_start" = " days",
+                     ""
       )
       
       div(

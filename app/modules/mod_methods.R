@@ -64,19 +64,20 @@ mod_methods_ui <- function(id) {
           class = "column",
           h4("Inclusion Criteria"),
           tags$ul(
+            tags$li(tags$strong("Interventional trials only"), " (observational studies excluded)"),
+            tags$li(tags$strong("Treatment purpose only"), " (excludes prevention, supportive care, screening)"),
             tags$li("Condition contains 'cancer' (broad oncology filter)"),
             tags$li("Phase 2, Phase 1/2, Phase 2/3, or Phase 3"),
             tags$li("Completed status with valid start and completion dates"),
-            tags$li("Valid enrollment data (> 0 participants)"),
+            tags$li("ACTUAL (final) enrollment data (> 0 participants)"),
             tags$li("Duration between 1 and 180 months (outliers removed)")
           ),
           
           h4("Data Quality Notes"),
           p(style = paste0("font-size: 0.9em; color: ", colors$text_secondary),
-            "Registry enrollment values may be updated during or after the study; 
-             predictions assume inputs reflect final reported values. The 'cancer' 
-             keyword filter is broad and may include supportive care, prevention, 
-             and screening studies.")
+            "Registry enrollment values reflect final reported enrollment ('ACTUAL'), not 
+             anticipated enrollment at study start. Predictions assume inputs reflect 
+             values consistent with completed trial characteristics.")
         )
       )
     ),
@@ -126,12 +127,12 @@ mod_methods_ui <- function(id) {
           tags$ul(
             tags$li("Linear Regression (baseline)"),
             tags$li("Elastic Net (regularized linear)"),
-            tags$li(tags$strong("Random Forest (selected)")),
-            tags$li("XGBoost (gradient boosting)")
+            tags$li("Random Forest (ensemble)"),
+            tags$li(tags$strong("XGBoost (selected)"))
           ),
           p(style = paste0("font-size: 0.9em; color: ", colors$text_secondary),
-            "Random Forest was selected for competitive performance with better 
-             interpretability than XGBoost.")
+            "XGBoost was selected for best CV performance (R² = 0.83). 
+             Registration-to-start accounts for 91% of feature importance.")
         )
       )
     ),

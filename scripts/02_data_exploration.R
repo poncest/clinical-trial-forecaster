@@ -372,11 +372,20 @@ trials_clean <- trials_df |>
     duration_months = interval(start_date_parsed, completion_date_parsed) / months(1),
     duration_to_primary_months = interval(start_date_parsed, primary_completion_parsed) / months(1)
   ) |>
-  # Filter for modeling
+  # Filter for modeling (Stage 2 fixes applied)
   filter(
+    # --- CRITICAL: Study type filter ---
+    study_type == "INTERVENTIONAL",  # Exclude observational studies
+    
+    # --- Narrow to treatment trials ---
+    primary_purpose == "TREATMENT",  # Exclude prevention, supportive care, screening
+    
+    # --- Duration validity ---
     !is.na(duration_months),
     duration_months > 0,
     duration_months < 240,  # Exclude outliers (> 20 years)
+    
+    # --- Enrollment validity (ACTUAL = post-completion final enrollment) ---
     enrollment_type == "ACTUAL",
     !is.na(enrollment_count),
     enrollment_count > 0
@@ -386,6 +395,12 @@ cat("📊 Trials with Valid Duration Data:\n")
 cat("   Original trials:", nrow(trials_df), "\n")
 cat("   After filtering:", nrow(trials_clean), "\n")
 cat("   Usable for modeling:", round(nrow(trials_clean) / nrow(trials_df) * 100, 1), "%\n")
+
+# --- Stage 2: Detailed filter diagnostics ---
+cat("\n📋 Filter Diagnostics (Stage 2):\n")
+cat("   Interventional only:", sum(trials_df$study_type == "INTERVENTIONAL", na.rm = TRUE), "\n")
+cat("   Treatment purpose:", sum(trials_df$primary_purpose == "TREATMENT", na.rm = TRUE), "\n")
+cat("   ACTUAL enrollment:", sum(trials_df$enrollment_type == "ACTUAL", na.rm = TRUE), "\n")
 
 # ----------------------------------------------------------------------------
 # Step 5: Summary Statistics

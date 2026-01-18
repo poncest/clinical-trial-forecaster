@@ -97,26 +97,26 @@ phase_levels <- levels(trials_data$phase_simple)
 sponsor_levels <- levels(trials_data$sponsor_simple)
 
 # -----------------------------------------------------------------------------
-# Model Metrics (from training)
+# Model Metrics (from training - XGBoost, Stage 2 cohort)
 # -----------------------------------------------------------------------------
 model_metrics <- list(
-  r_squared = 0.790,
-  rmse = 0.652,
-  mae = 0.486,
-  median_abs_error_months = 9.6,
-  mean_abs_error_months = 18.1
+  r_squared = 0.838,
+  rmse = 0.575,
+  mae = 0.433,
+  median_abs_error_months = 8.9,
+  mean_abs_error_months = 17.0
 )
 
 # -----------------------------------------------------------------------------
 # Helper: Predict Duration (Fast Linear Approximation)
 # -----------------------------------------------------------------------------
-# Note: Using linear approximation for instant UX. Coefficients derived from
-# the full RF model's feature importance and median predictions.
+# Note: Using linear approximation for instant UX. Coefficients calibrated to
+# XGBoost feature importance (registration_to_start = 91% importance).
 
 predict_duration <- function(enrollment, n_sites, n_countries, 
                              registration_to_start, phase, sponsor) {
   
-  # Base log-duration (intercept, calibrated to median ~33 months)
+  # Base log-duration (intercept, calibrated to median ~36 months)
   log_duration <- 3.2
   
   # Registration to start effect (top predictor)
@@ -192,15 +192,24 @@ format_duration <- function(months) {
 app_info <- list(
   title = "Clinical Trial Duration Forecaster",
   subtitle = "Predictive Analytics for Trial Planning",
-  version = "1.0.0",
+  version = "1.1.0",  # Version bump for Stage 2 fixes
   data_source = "ClinicalTrials.gov",
   n_trials = nrow(trials_data),
   therapeutic_area = "Oncology",
   phases = "Phase 2, Phase 2/3, Phase 3",
-  model_type = "Random Forest",
+  model_type = "XGBoost",
   data_pulled = "January 2026",
   model_trained = "January 2026",
-  last_updated = "January 2026"
+  last_updated = "January 2026",
+  
+  
+  # Stage 2: Explicit inclusion criteria
+  inclusion_criteria = list(
+    study_type = "Interventional trials only",
+    primary_purpose = "Treatment trials only",
+    enrollment_type = "ACTUAL (post-completion final enrollment)",
+    status = "Completed trials only"
+  )
 )
 
 cat("✓ Global setup complete\n")

@@ -125,7 +125,7 @@ mod_executive_brief_ui <- function(id) {
             tags$tbody(
               tags$tr(
                 tags$td(tags$strong("Algorithm")),
-                tags$td("Random Forest (500 trees)")
+                tags$td("XGBoost (100 trees)")
               ),
               tags$tr(
                 tags$td(tags$strong("Features")),
@@ -137,7 +137,7 @@ mod_executive_brief_ui <- function(id) {
               ),
               tags$tr(
                 tags$td(tags$strong("Hyperparameters")),
-                tags$td("mtry=8, min_n=5 (tuned)")
+                tags$td("tree_depth=3, learn_rate=0.1 (tuned)")
               ),
               tags$tr(
                 tags$td(tags$strong("Test Performance")),
