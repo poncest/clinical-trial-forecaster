@@ -2,6 +2,7 @@
 # Module: Executive Brief
 # =============================================================================
 # Purpose: High-level model summary, key metrics, and strategic insights
+# Stage 3: Updated for Elastic Net model and time-based validation
 # =============================================================================
 
 mod_executive_brief_ui <- function(id) {
@@ -82,30 +83,29 @@ mod_executive_brief_ui <- function(id) {
           # Finding 1
           div(
             class = "insight-box",
-            div(class = "insight-title", "Registration-to-Start Time is the Top Predictor"),
-            p("Trials with longer registration-to-start lag are strongly associated with longer 
-               overall durations in this dataset. This may reflect a mix of startup complexity, 
-               site activation delays, or registry data update patterns. Note: this feature 
-               requires prediction at or after study start.")
+            div(class = "insight-title", "Sponsor Type Shows Strongest Association"),
+            p("Non-industry sponsors (NIH, Government, Academic) are associated with longer 
+               trial durations. This may reflect different trial designs, funding cycles, 
+               or operational approaches—though causality cannot be established from this 
+               observational data.")
           ),
           
           # Finding 2
           div(
             class = "insight-box",
-            div(class = "insight-title", "Site Burden Ratio Shows Strong Association"),
-            p("The enrollment-per-site ratio is a stronger predictor than total sites alone. 
-               Higher patient burden per site is associated with longer timelines, possibly 
-               due to recruitment capacity constraints—though causality cannot be established 
-               from this observational data.")
+            div(class = "insight-title", "Trial Size and Scope Matter"),
+            p("Enrollment size and number of countries show consistent associations with 
+               duration. Larger, more complex trials take longer—an expected pattern that 
+               provides face validity for the model.")
           ),
           
           # Finding 3
           div(
             class = "insight-box",
-            div(class = "insight-title", "Phase and Sponsor Type Show Expected Patterns"),
-            p("Phase 3 trials run longer than Phase 2, and industry-sponsored trials differ 
-               from academic/government studies. These associations align with domain knowledge 
-               and provide face validity for the model.")
+            div(class = "insight-title", "Limited Forecasting Power"),
+            p("Time-based validation reveals that registry features explain only ~4% of 
+               variance in future trial durations. Protocol complexity, endpoint strategy, 
+               and operational factors not captured in public data drive most variation.")
           )
         )
       ),
@@ -125,19 +125,19 @@ mod_executive_brief_ui <- function(id) {
             tags$tbody(
               tags$tr(
                 tags$td(tags$strong("Algorithm")),
-                tags$td("XGBoost (100 trees)")
+                tags$td("Elastic Net (regularized linear)")
               ),
               tags$tr(
                 tags$td(tags$strong("Features")),
-                tags$td("9 predictors")
+                tags$td("6 predictors")
               ),
               tags$tr(
                 tags$td(tags$strong("Training Method")),
                 tags$td("10-fold cross-validation")
               ),
               tags$tr(
-                tags$td(tags$strong("Hyperparameters")),
-                tags$td("tree_depth=3, learn_rate=0.1 (tuned)")
+                tags$td(tags$strong("Validation")),
+                tags$td("Time-based (train ≤2015, test 2016-2018)")
               ),
               tags$tr(
                 tags$td(tags$strong("Test Performance")),
@@ -219,8 +219,15 @@ mod_executive_brief_server <- function(id, trials_data, model_metrics, ref_stats
     # Mini feature importance chart (top 5)
     output$mini_importance <- renderGirafe({
       
+      # Normalize column names (Elastic Net uses term/abs_estimate, XGBoost uses Variable/Importance)
+      importance_data <- feature_importance
+      if ("term" %in% names(importance_data)) {
+        importance_data <- importance_data |>
+          dplyr::rename(Variable = term, Importance = abs_estimate)
+      }
+      
       # Get top 5 features
-      top_features <- feature_importance |>
+      top_features <- importance_data |>
         head(5) |>
         mutate(
           feature_label = case_when(
@@ -229,7 +236,9 @@ mod_executive_brief_server <- function(id, trials_data, model_metrics, ref_stats
             Variable == "log_enrollment" ~ "Enrollment Size",
             Variable == "log_enrollment_per_site" ~ "Enrollment/Site",
             Variable == "n_countries" ~ "Countries",
-            TRUE ~ Variable
+            grepl("sponsor_simple", Variable) ~ gsub("sponsor_simple_", "Sponsor: ", Variable),
+            grepl("phase_simple", Variable) ~ gsub("phase_simple_", "", Variable),
+            TRUE ~ gsub("_", " ", Variable)
           ),
           feature_label = factor(feature_label, levels = rev(feature_label))
         )

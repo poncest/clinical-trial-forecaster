@@ -2,6 +2,7 @@
 # Module: Model Performance
 # =============================================================================
 # Purpose: Model diagnostics, validation metrics, and comparison
+# Stage 3: Updated for Elastic Net and time-based validation
 # =============================================================================
 
 mod_performance_ui <- function(id) {
@@ -106,7 +107,7 @@ mod_performance_ui <- function(id) {
          icon("balance scale"), " Model Comparison"),
       p(style = paste0("color: ", colors$text_secondary),
         "Four model types were trained and compared using 10-fold cross-validation. 
-         XGBoost was selected for best performance on held-out validation data."),
+         Elastic Net was selected for best performance on the time-based validation set."),
       
       reactableOutput(ns("model_comparison_table"))
     ),
@@ -151,10 +152,10 @@ mod_performance_ui <- function(id) {
           class = "column",
           h4("Training Approach"),
           tags$ul(
-            tags$li("80/20 train/test split"),
-            tags$li("Stratified by trial phase"),
-            tags$li("10-fold cross-validation"),
-            tags$li("Grid search hyperparameter tuning")
+            tags$li("Time-based train/test split"),
+            tags$li("Train: ≤2015, Test: 2016-2018"),
+            tags$li("10-fold cross-validation (within training)"),
+            tags$li("Excluded 2019+ (right-truncation bias)")
           )
         ),
         
@@ -174,9 +175,9 @@ mod_performance_ui <- function(id) {
           h4("Limitations"),
           tags$ul(
             tags$li("Oncology-specific model"),
-            tags$li("Completed trials only (survivorship bias)"),
+            tags$li("Limited prospective accuracy (R² ≈ 4%)"),
             tags$li("Registry data lacks protocol details"),
-            tags$li("Does not capture COVID-19 disruptions")
+            tags$li("Trial practices changed over time (~30mo drift)")
           )
         )
       )
@@ -371,27 +372,25 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
     # Error by phase
     output$error_by_phase <- renderGirafe({
       
-      # Need to join back phase info
-      # For now, show placeholder - in production would join with trials_data
-      plot_data <- test_predictions |>
+      # Compute actual error by phase from test predictions
+      phase_error <- test_predictions |>
+        group_by(phase_simple) |>
+        summarise(
+          median_error = median(abs_error_months, na.rm = TRUE),
+          n = n(),
+          .groups = "drop"
+        ) |>
+        filter(!is.na(phase_simple)) |>
         mutate(
-          actual_months = exp(log_duration),
-          predicted_months = exp(.pred),
-          abs_error = abs(actual_months - predicted_months)
+          phase = factor(phase_simple, 
+                         levels = rev(c("Phase 2", "Phase 1/2", "Phase 2/3", "Phase 3")))
         )
-      
-      # Simulated phase breakdown (would come from actual data)
-      phase_error <- data.frame(
-        phase = c("Phase 2", "Phase 1/2", "Phase 2/3", "Phase 3"),
-        median_error = c(8.2, 9.1, 11.3, 10.8)
-      ) |>
-        mutate(phase = factor(phase, levels = rev(c("Phase 2", "Phase 1/2", "Phase 2/3", "Phase 3"))))
       
       p <- ggplot(phase_error, aes(x = phase, y = median_error)) +
         geom_col_interactive(
           aes(
-            tooltip = paste0(phase, "\nMedian Error: ", median_error, " months"),
-            data_id = phase
+            tooltip = paste0(phase_simple, " (n=", n, ")\nMedian Error: ", round(median_error, 1), " months"),
+            data_id = phase_simple
           ),
           fill = colors$primary,
           width = 0.6
@@ -425,17 +424,25 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
     # Error by sponsor
     output$error_by_sponsor <- renderGirafe({
       
-      sponsor_error <- data.frame(
-        sponsor = c("Industry", "Academic/Other", "NIH", "Gov/Network"),
-        median_error = c(9.8, 9.2, 10.5, 11.2)
-      ) |>
-        mutate(sponsor = factor(sponsor, levels = rev(c("Industry", "Academic/Other", "NIH", "Gov/Network"))))
+      # Compute actual error by sponsor from test predictions
+      sponsor_error <- test_predictions |>
+        group_by(sponsor_simple) |>
+        summarise(
+          median_error = median(abs_error_months, na.rm = TRUE),
+          n = n(),
+          .groups = "drop"
+        ) |>
+        filter(!is.na(sponsor_simple)) |>
+        mutate(
+          sponsor = factor(sponsor_simple, 
+                           levels = rev(c("Industry", "Academic/Other", "NIH", "Government/Network")))
+        )
       
       p <- ggplot(sponsor_error, aes(x = sponsor, y = median_error)) +
         geom_col_interactive(
           aes(
-            tooltip = paste0(sponsor, "\nMedian Error: ", median_error, " months"),
-            data_id = sponsor
+            tooltip = paste0(sponsor_simple, " (n=", n, ")\nMedian Error: ", round(median_error, 1), " months"),
+            data_id = sponsor_simple
           ),
           fill = colors$primary,
           width = 0.6

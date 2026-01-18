@@ -2,6 +2,7 @@
 # Module: Feature Explorer
 # =============================================================================
 # Purpose: Feature importance visualization and relationship exploration
+# Stage 3: Updated to handle Elastic Net coefficient format
 # =============================================================================
 
 mod_features_ui <- function(id) {
@@ -90,10 +91,11 @@ mod_features_ui <- function(id) {
           class = "column",
           div(
             class = "insight-box",
-            div(class = "insight-title", "Registration-to-Start Dominates"),
-            p("This feature has 15× the importance of the next predictor. It captures 
-               operational complexity and trial readiness - factors that cascade through 
-               the entire trial lifecycle.")
+            div(class = "insight-title", "Sponsor Type Shows Strongest Signal"),
+            p("Non-industry sponsors (NIH, Government, Academic) show the largest coefficients,
+               suggesting these trials tend to run longer than industry-sponsored studies—
+               though this association may reflect different trial designs rather than 
+               operational efficiency.")
           )
         ),
         
@@ -112,10 +114,10 @@ mod_features_ui <- function(id) {
           class = "column",
           div(
             class = "insight-box",
-            div(class = "insight-title", "Categorical Effects"),
-            p("Phase and sponsor type show modest but consistent effects. These validate 
-               domain knowledge: Phase 3 trials run longer than Phase 2, and sponsor 
-               types have different operational profiles.")
+            div(class = "insight-title", "Limited Predictive Power"),
+            p("Despite clear associations, these features explain only ~4% of variance in 
+               future trial durations. Protocol complexity, endpoints, and operational 
+               factors not in the registry drive most of the variation.")
           )
         )
       )
@@ -129,8 +131,15 @@ mod_features_server <- function(id, trials_data, feature_importance) {
     # Feature importance chart
     output$importance_chart <- renderGirafe({
       
+      # Normalize column names (Elastic Net uses term/abs_estimate, XGBoost uses Variable/Importance)
+      plot_data <- feature_importance
+      if ("term" %in% names(plot_data)) {
+        plot_data <- plot_data |>
+          dplyr::rename(Variable = term, Importance = abs_estimate)
+      }
+      
       # Prepare data
-      plot_data <- feature_importance |>
+      plot_data <- plot_data |>
         mutate(
           feature_label = case_when(
             Variable == "registration_to_start" ~ "Registration to Start Time",
@@ -138,12 +147,15 @@ mod_features_server <- function(id, trials_data, feature_importance) {
             Variable == "log_enrollment" ~ "Enrollment Size (log)",
             Variable == "log_enrollment_per_site" ~ "Enrollment per Site (log)",
             Variable == "n_countries" ~ "Number of Countries",
+            Variable == "is_multinational" ~ "Multinational Flag",
+            Variable == "is_multisite" ~ "Multi-site Flag",
             Variable == "sponsor_simple_Government.Network" ~ "Sponsor: Government/Network",
             Variable == "sponsor_simple_Academic.Other" ~ "Sponsor: Academic/Other",
+            Variable == "sponsor_simple_NIH" ~ "Sponsor: NIH",
             Variable == "phase_simple_Phase.3" ~ "Phase 3",
             Variable == "phase_simple_Phase.2.3" ~ "Phase 2/3",
-            Variable == "sponsor_simple_NIH" ~ "Sponsor: NIH",
-            TRUE ~ Variable
+            Variable == "phase_simple_Phase.1.2" ~ "Phase 1/2",
+            TRUE ~ gsub("_", " ", Variable)
           ),
           feature_label = factor(feature_label, levels = rev(feature_label)),
           pct_of_max = Importance / max(Importance) * 100,
@@ -160,7 +172,7 @@ mod_features_server <- function(id, trials_data, feature_importance) {
             fill = category,
             tooltip = paste0(
               "<strong>", feature_label, "</strong><br>",
-              "Importance: ", format(round(Importance, 0), big.mark = ","), "<br>",
+              "Coefficient: ", round(Importance, 3), "<br>",
               "% of max: ", round(pct_of_max, 1), "%"
             ),
             data_id = Variable
@@ -168,7 +180,7 @@ mod_features_server <- function(id, trials_data, feature_importance) {
           width = 0.7
         ) +
         geom_text(
-          aes(label = format(round(Importance, 0), big.mark = ",")),
+          aes(label = round(Importance, 2)),
           hjust = -0.1,
           size = 3,
           color = colors$text_secondary
@@ -179,9 +191,9 @@ mod_features_server <- function(id, trials_data, feature_importance) {
         ) +
         scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
         labs(
-          x = "Importance Score",
+          x = "Coefficient Magnitude",
           y = NULL,
-          title = "Feature Importance (XGBoost)"
+          title = "Feature Importance (Elastic Net)"
         ) +
         theme_minimal(base_size = 12) +
         theme(

@@ -2,7 +2,8 @@
 # Module: Methods & Data
 # =============================================================================
 # Purpose: Document data sources, methodology, limitations, and disclaimers
-# Stage 2.5: Updated R² metric and fixed causal language on feature importance
+# Stage 3: Time-based validation findings - R² dropped from 0.84 to 0.04
+#          Added Validation Lessons panel and Why Forecasting Is Hard section
 # =============================================================================
 
 mod_methods_ui <- function(id) {
@@ -15,6 +16,168 @@ mod_methods_ui <- function(id) {
       h2(class = "tab-title", icon("book"), " Methods & Data"),
       p(class = "tab-subtitle", 
         "Data sources, model methodology, and important limitations")
+    ),
+    
+    # === VALIDATION LESSONS PANEL (Key Stage 3 Finding) ===
+    div(
+      class = "ui segment",
+      style = "border-left: 4px solid #D32F2F; background: #FFF8F8;",
+      
+      h3(
+        style = "color: #D32F2F; margin-top: 0;",
+        icon("exclamation-triangle"),
+        " Validation Lessons: Why Metrics Can Mislead"
+      ),
+      
+      p(
+        style = "font-size: 1.1em; line-height: 1.7; color: #1A1A2E;",
+        "Random validation suggested strong performance (R² ≈ 0.84). ",
+        "Time-based validation—appropriate for prospective forecasting—revealed ",
+        "minimal predictive power (R² ≈ 0.04). This highlights both the limitations ",
+        "of registry data and the importance of matching validation strategy to ",
+        "decision context."
+      ),
+      
+      # Comparison boxes
+      div(
+        class = "ui two column stackable grid",
+        style = "margin-top: 1.5em;",
+        
+        # Random validation column
+        div(
+          class = "column",
+          div(
+            class = "ui segment",
+            style = "background: #FFF3E0;",
+            h4(style = "color: #E65100; margin-top: 0;", icon("random"), " Random Split Validation"),
+            div(
+              style = "font-size: 2em; font-weight: bold; color: #E65100;",
+              "R² = 0.84"
+            ),
+            p(
+              style = "color: #4A4A68; margin-top: 0.5em;",
+              tags$strong("Problem:"), " Future data points mixed into training set. ",
+              "Model learns patterns it wouldn't have access to in real forecasting."
+            ),
+            div(
+              class = "ui label",
+              style = "background: #E65100; color: white;",
+              "Misleading for prospective use"
+            )
+          )
+        ),
+        
+        # Time-based validation column
+        div(
+          class = "column",
+          div(
+            class = "ui segment",
+            style = "background: #E8F5E9;",
+            h4(style = "color: #2E7D32; margin-top: 0;", icon("calendar"), " Time-Based Validation"),
+            div(
+              style = "font-size: 2em; font-weight: bold; color: #2E7D32;",
+              "R² = 0.04"
+            ),
+            p(
+              style = "color: #4A4A68; margin-top: 0.5em;",
+              tags$strong("Approach:"), " Train on ≤2015, test on 2016-2018. ",
+              "Simulates real forecasting: predicting future from past only."
+            ),
+            div(
+              class = "ui label",
+              style = "background: #2E7D32; color: white;",
+              "Honest estimate for decision-making"
+            )
+          )
+        )
+      ),
+      
+      # Key takeaway
+      div(
+        style = "margin-top: 1.5em; padding: 1em; background: #F5F5F5; border-radius: 4px;",
+        p(
+          style = "margin: 0; color: #1A1A2E;",
+          tags$strong("Key Takeaway: "),
+          "This model is ", tags$strong("not suitable for prospective duration forecasting "),
+          "without additional data sources. The tool remains valuable for understanding ",
+          "historical patterns and the factors associated with trial duration."
+        )
+      )
+    ),
+    
+    # === WHY FORECASTING IS HARD SECTION ===
+    div(
+      class = "ui segment",
+      style = "margin-top: 1.5em;",
+      
+      h3(
+        style = paste0("color: ", colors$primary_dark, "; margin-top: 0;"),
+        icon("question-circle"),
+        " Why Trial Duration Forecasting Is Hard"
+      ),
+      
+      h4(style = "color: #4A4A68;", "1. Trial Durations Are Changing Over Time"),
+      p(
+        "Our analysis revealed a ", tags$strong("~30-month reduction "),
+        "in median trial duration between training (≤2015) and test (2016-2018) periods:"
+      ),
+      tags$ul(
+        tags$li("Training period median: 81.9 months"),
+        tags$li("Test period median: 52.7 months"),
+        tags$li("This represents a fundamental shift in trial dynamics")
+      ),
+      
+      p(style = "color: #4A4A68;", "Likely drivers of this acceleration in oncology:"),
+      tags$ul(
+        style = "color: #4A4A68;",
+        tags$li("Adaptive trial designs"),
+        tags$li("Biomarker-selected populations"),
+        tags$li("Immuno-oncology platform efficiencies"),
+        tags$li("Regulatory acceptance of surrogate endpoints"),
+        tags$li("Improved site networks and startup tooling")
+      ),
+      
+      h4(style = "color: #4A4A68; margin-top: 1.5em;", "2. Registry Data Lacks Key Predictive Signals"),
+      p("ClinicalTrials.gov captures basic trial characteristics, but the true drivers ",
+        "of trial duration are not consistently available:"),
+      
+      div(
+        class = "ui two column stackable grid",
+        div(
+          class = "column",
+          h5(style = "color: #2E7D32;", "Available in Registry"),
+          tags$ul(
+            tags$li("Phase"),
+            tags$li("Enrollment target"),
+            tags$li("Number of sites/countries"),
+            tags$li("Sponsor type"),
+            tags$li("Registration timing")
+          )
+        ),
+        div(
+          class = "column",
+          h5(style = "color: #D32F2F;", "Missing (True Drivers)"),
+          tags$ul(
+            tags$li("Protocol complexity"),
+            tags$li("Endpoint strategy"),
+            tags$li("Competitive landscape"),
+            tags$li("Country-specific startup constraints"),
+            tags$li("Line-of-therapy and biomarker prevalence"),
+            tags$li("Site experience and performance")
+          )
+        )
+      ),
+      
+      div(
+        style = "padding: 1em; background: #E3F2FD; border-radius: 4px; margin-top: 1em;",
+        p(
+          style = "margin: 0;",
+          tags$strong("Appropriate uses of this tool: "),
+          "Understanding historical duration distributions by phase, sponsor, and trial size; ",
+          "exploring associations between trial characteristics and duration; ",
+          "generating rough reference ranges (not point forecasts)."
+        )
+      )
     ),
     
     # Data Source Section
@@ -114,11 +277,12 @@ mod_methods_ui <- function(id) {
           class = "column",
           h4("Model Training"),
           tags$ul(
-            tags$li(tags$strong("Split: "), "80% train / 20% test"),
-            tags$li(tags$strong("Stratification: "), "By trial phase"),
-            tags$li(tags$strong("Validation: "), "10-fold cross-validation"),
-            tags$li(tags$strong("Tuning: "), "Grid search over hyperparameters"),
-            tags$li(tags$strong("Selection: "), "Lowest CV RMSE")
+            tags$li(tags$strong("Split: "), "Time-based (train ≤2015, test 2016-2018)"),
+            tags$li(tags$strong("Training: "), "546 trials"),
+            tags$li(tags$strong("Test: "), "340 trials"),
+            tags$li(tags$strong("Excluded: "), "878 trials (>2018, right-truncated)"),
+            tags$li(tags$strong("CV: "), "10-fold within training data"),
+            tags$li(tags$strong("Selection: "), "Best CV R²")
           )
         ),
         
@@ -127,16 +291,15 @@ mod_methods_ui <- function(id) {
           h4("Models Evaluated"),
           tags$ul(
             tags$li("Linear Regression (baseline)"),
-            tags$li("Elastic Net (regularized linear)"),
+            tags$li(tags$strong("Elastic Net (selected)")),
             tags$li("Random Forest (ensemble)"),
-            tags$li(tags$strong("XGBoost (selected)"))
+            tags$li("XGBoost (boosting)")
           ),
-          # Stage 2.5: Fixed causal language - "accounts for" → appropriate hedging
+          # Stage 3: Updated findings
           p(style = paste0("font-size: 0.9em; color: ", colors$text_secondary),
-            "XGBoost was selected for best CV performance (R² = 0.84). 
-             Registration-to-start is the strongest signal in this dataset and 
-             dominates importance metrics; it may reflect a mix of startup 
-             complexity and registry update patterns.")
+            "Elastic Net selected for best CV performance. Time-based test set R² = 0.04, 
+             indicating registry features have limited power for prospective forecasting. 
+             See Validation Lessons above for details.")
         )
       )
     ),
@@ -223,13 +386,14 @@ mod_methods_ui <- function(id) {
       
       div(
         class = "insight-box",
-        style = paste0("border-left-color: ", colors$warning, ";"),
-        h4(style = "margin-top: 0;", "Validation Approach"),
-        p("The model was validated using random train/test splits stratified by phase, not 
-           time-based splits. Performance metrics may overestimate accuracy for forecasting 
-           future trials, as clinical trial operations evolve over time. A time-based 
-           validation (train on earlier years, test on later years) would provide more 
-           conservative and realistic performance estimates.")
+        style = paste0("border-left-color: ", colors$success, ";"),
+        h4(style = "margin-top: 0;", "Validation Approach (Stage 3)"),
+        p("This model uses ", tags$strong("time-based validation"), ": trained on trials 
+           starting ≤2015, tested on trials starting 2016-2018. This approach simulates 
+           real forecasting—predicting future trials from historical patterns only. 
+           The resulting R² ≈ 0.04 reflects the honest prospective capability of registry-based 
+           features, rather than the inflated R² ≈ 0.84 from random splits that allow 
+           temporal leakage.")
       ),
       
       div(

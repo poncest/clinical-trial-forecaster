@@ -1,7 +1,8 @@
 # =============================================================================
 # Module: Duration Forecaster
 # =============================================================================
-# Stage 2.5: Uses real XGBoost model via predict(final_workflow, new_data)
+# Stage 3: Added validation caveat warning (R² ≈ 0.04 on time-based test)
+# Stage 2.5: Uses real model via predict(final_workflow, new_data)
 # Option A architecture: App passes raw inputs, recipe handles transforms
 # =============================================================================
 
@@ -13,6 +14,25 @@ mod_forecaster_ui <- function(id) {
       class = "tab-header",
       h2(class = "tab-title", icon("calculator"), " Duration Forecaster"),
       p(class = "tab-subtitle", "Enter trial characteristics to predict expected duration")
+    ),
+    
+    # Stage 3: Validation caveat warning
+    div(
+      class = "ui warning message",
+      style = "margin-bottom: 1.5em;",
+      div(class = "header", 
+          icon("exclamation-triangle"), " Forecasting Limitation"),
+      p(
+        "Time-based validation indicates limited prospective accuracy (R² ≈ 0.04). ",
+        "Predictions reflect historical patterns that may not apply to future trials. ",
+        "Use for reference ranges only, not operational planning. ",
+        tags$a(
+          href = "#methods",
+          onclick = "$('[data-tab=\"methods\"]').click(); return false;",
+          style = "font-weight: 600;",
+          "See Methods tab for details."
+        )
+      )
     ),
     
     div(
