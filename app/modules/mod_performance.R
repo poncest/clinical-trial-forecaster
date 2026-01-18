@@ -26,7 +26,7 @@ mod_performance_ui <- function(id) {
         div(
           class = "kpi-card",
           div(class = "kpi-value", 
-              style = paste0("color: ", colors$success),
+              style = paste0("color: ", colors$primary),
               paste0(model_metrics$r_squared * 100, "%")),
           div(class = "kpi-label", "R² (Variance Explained)"),
           div(class = "kpi-context", "Test set")
@@ -106,7 +106,7 @@ mod_performance_ui <- function(id) {
          icon("balance scale"), " Model Comparison"),
       p(style = paste0("color: ", colors$text_secondary),
         "Four model types were trained and compared using 10-fold cross-validation. 
-         Random Forest was selected for its balance of performance and interpretability."),
+         XGBoost was selected for best performance on held-out validation data."),
       
       reactableOutput(ns("model_comparison_table"))
     ),
@@ -192,8 +192,9 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
       
       plot_data <- test_predictions |>
         mutate(
-          actual_months = exp(actual),
-          predicted_months = exp(predicted),
+          row_id = row_number(),
+          actual_months = exp(log_duration),
+          predicted_months = exp(.pred),
           error_months = actual_months - predicted_months
         )
       
@@ -206,7 +207,7 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
               "Predicted: ", round(predicted_months, 1), " months\n",
               "Error: ", round(error_months, 1), " months"
             ),
-            data_id = row_number()
+            data_id = row_id
           ),
           color = colors$primary,
           alpha = 0.5,
@@ -241,8 +242,8 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
       
       plot_data <- test_predictions |>
         mutate(
-          actual_months = exp(actual),
-          predicted_months = exp(predicted),
+          actual_months = exp(log_duration),
+          predicted_months = exp(.pred),
           error_months = actual_months - predicted_months
         )
       
@@ -302,18 +303,22 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
         mutate(
           Model = case_when(
             model == "random_forest" ~ "Random Forest",
+            model == "Random Forest" ~ "Random Forest",
             model == "xgboost" ~ "XGBoost",
+            model == "XGBoost" ~ "XGBoost",
             model == "elastic_net" ~ "Elastic Net",
+            model == "Elastic Net" ~ "Elastic Net",
             model == "linear_reg" ~ "Linear Regression",
+            model == "Linear Regression" ~ "Linear Regression",
             TRUE ~ model
           )
         ) |>
-        arrange(mean_rmse) |>
+        arrange(rmse) |>
         select(
           Model,
-          `RMSE (CV)` = mean_rmse,
-          `MAE (CV)` = mean_mae,
-          `R² (CV)` = mean_rsq
+          `RMSE (CV)` = rmse,
+          `MAE (CV)` = mae,
+          `R² (CV)` = rsq
         )
       
       reactable(
@@ -370,8 +375,8 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
       # For now, show placeholder - in production would join with trials_data
       plot_data <- test_predictions |>
         mutate(
-          actual_months = exp(actual),
-          predicted_months = exp(predicted),
+          actual_months = exp(log_duration),
+          predicted_months = exp(.pred),
           abs_error = abs(actual_months - predicted_months)
         )
       
@@ -380,7 +385,7 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
         phase = c("Phase 2", "Phase 1/2", "Phase 2/3", "Phase 3"),
         median_error = c(8.2, 9.1, 11.3, 10.8)
       ) |>
-        mutate(phase = factor(phase, levels = c("Phase 2", "Phase 1/2", "Phase 2/3", "Phase 3")))
+        mutate(phase = factor(phase, levels = rev(c("Phase 2", "Phase 1/2", "Phase 2/3", "Phase 3"))))
       
       p <- ggplot(phase_error, aes(x = phase, y = median_error)) +
         geom_col_interactive(
@@ -398,9 +403,10 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
         ) +
         scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
         labs(x = NULL, y = "Median Absolute Error (months)") +
+        coord_flip() +
         theme_minimal(base_size = 10) +
         theme(
-          panel.grid.major.x = element_blank(),
+          panel.grid.major.y = element_blank(),
           panel.grid.minor = element_blank()
         )
       
@@ -423,7 +429,7 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
         sponsor = c("Industry", "Academic/Other", "NIH", "Gov/Network"),
         median_error = c(9.8, 9.2, 10.5, 11.2)
       ) |>
-        mutate(sponsor = factor(sponsor, levels = c("Industry", "Academic/Other", "NIH", "Gov/Network")))
+        mutate(sponsor = factor(sponsor, levels = rev(c("Industry", "Academic/Other", "NIH", "Gov/Network"))))
       
       p <- ggplot(sponsor_error, aes(x = sponsor, y = median_error)) +
         geom_col_interactive(
@@ -431,7 +437,7 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
             tooltip = paste0(sponsor, "\nMedian Error: ", median_error, " months"),
             data_id = sponsor
           ),
-          fill = colors$accent,
+          fill = colors$primary,
           width = 0.6
         ) +
         geom_hline(
@@ -441,11 +447,11 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
         ) +
         scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
         labs(x = NULL, y = "Median Absolute Error (months)") +
+        coord_flip() +
         theme_minimal(base_size = 10) +
         theme(
-          panel.grid.major.x = element_blank(),
-          panel.grid.minor = element_blank(),
-          axis.text.x = element_text(angle = 15, hjust = 1)
+          panel.grid.major.y = element_blank(),
+          panel.grid.minor = element_blank()
         )
       
       girafe(

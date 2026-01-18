@@ -375,7 +375,8 @@ mod_methods_server <- function(id, trials_data, app_info) {
           "Binary (0/1)",
           "Binary (0/1)"
         ),
-        stringsAsFactors = FALSE
+        stringsAsFactors = FALSE,
+        check.names = FALSE
       )
       
       reactable(
