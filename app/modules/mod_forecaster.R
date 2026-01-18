@@ -1,6 +1,9 @@
 # =============================================================================
 # Module: Duration Forecaster
 # =============================================================================
+# Stage 2.5: Uses real XGBoost model via predict(final_workflow, new_data)
+# Option A architecture: App passes raw inputs, recipe handles transforms
+# =============================================================================
 
 mod_forecaster_ui <- function(id) {
   ns <- NS(id)
@@ -113,15 +116,10 @@ mod_forecaster_server <- function(id, trials_data, ref_stats, phase_levels, spon
     # Store prediction
     pred_val <- reactiveVal(NULL)
     
-    # Button click - USE THE ACTUAL TRAINED MODEL (Option A: Raw Inputs)
+    # Button click - Stage 2.5: Use real XGBoost model
     observeEvent(input$predict, {
       
-      # --- Input Validation ---
-      req(input$enrollment > 0, input$sites >= 1, input$countries >= 1)
-      
-      # --- Pass Raw Inputs (Recipe handles all transforms) ---
-      # This is Option A architecture: single source of truth
-      # The recipe does: log transforms, derived features, normalization, encoding
+      # Option A: Pass RAW inputs - recipe handles all transforms
       new_data <- tibble::tibble(
         enrollment_count = as.numeric(input$enrollment),
         n_sites = as.numeric(input$sites),
@@ -131,30 +129,16 @@ mod_forecaster_server <- function(id, trials_data, ref_stats, phase_levels, spon
         sponsor_simple = factor(input$sponsor, levels = sponsor_levels)
       )
       
-      # --- Schema Validation ---
-      required_cols <- c("enrollment_count", "n_sites", "n_countries", 
-                         "registration_to_start", "phase_simple", "sponsor_simple")
+      # Get prediction from real model (log scale)
+      pred_log <- predict(final_workflow, new_data)$.pred
       
-      if (!all(required_cols %in% names(new_data))) {
-        showNotification("Schema mismatch - contact developer", type = "error")
-        return(NULL)
-      }
+      # Back-transform to months
+      pred_months <- exp(pred_log)
       
-      # --- Make Prediction ---
-      tryCatch({
-        # Predict returns log_duration; back-transform to months
-        pred_log <- predict(final_workflow, new_data)$.pred
-        pred_months <- exp(pred_log)
-        
-        # Bound to reasonable range (matches training data bounds)
-        pred_months <- max(1, min(180, pred_months))
-        
-        pred_val(pred_months)
-        
-      }, error = function(e) {
-        showNotification(paste("Prediction error:", e$message), type = "error")
-        pred_val(NULL)
-      })
+      # Bound to reasonable range (6 months to 15 years)
+      pred_months <- max(6, min(180, pred_months))
+      
+      pred_val(pred_months)
     })
     
     # Main prediction display

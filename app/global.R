@@ -30,6 +30,7 @@ colors <- list(
   primary_dark = "#023E8A", 
   primary_light = "#48CAE4",
   
+  
   accent = "#006D77",        
   accent_light = "#83C5BE", 
   success = "#2E7D32",       
@@ -48,6 +49,7 @@ colors <- list(
 # -----------------------------------------------------------------------------
 # Load Model and Data
 # -----------------------------------------------------------------------------
+# Stage 2.5: Paths updated to match pipeline output (app/models/, app/data-raw/)
 message("Loading data files...")
 
 final_workflow <- readRDS("models/final_workflow.rds")
@@ -97,7 +99,7 @@ phase_levels <- levels(trials_data$phase_simple)
 sponsor_levels <- levels(trials_data$sponsor_simple)
 
 # -----------------------------------------------------------------------------
-# Model Metrics (from training - XGBoost, Stage 2 cohort)
+# Model Metrics (from training - XGBoost, Stage 2.5 Option A)
 # -----------------------------------------------------------------------------
 model_metrics <- list(
   r_squared = 0.841,
@@ -107,7 +109,6 @@ model_metrics <- list(
   mean_abs_error_months = 16.9
 )
 
-# -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 # DEPRECATED: predict_duration function removed in Stage 2.5
 # -----------------------------------------------------------------------------
@@ -140,7 +141,7 @@ format_duration <- function(months) {
 app_info <- list(
   title = "Clinical Trial Duration Forecaster",
   subtitle = "Predictive Analytics for Trial Planning",
-  version = "1.2.0",  # Stage 2.5: Real model integration (not heuristic)
+  version = "1.2.0",  # Stage 2.5: Real model integration (Option A architecture)
   data_source = "ClinicalTrials.gov",
   n_trials = nrow(trials_data),
   therapeutic_area = "Oncology",

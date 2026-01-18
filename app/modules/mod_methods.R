@@ -2,6 +2,7 @@
 # Module: Methods & Data
 # =============================================================================
 # Purpose: Document data sources, methodology, limitations, and disclaimers
+# Stage 2.5: Updated R² metric and fixed causal language on feature importance
 # =============================================================================
 
 mod_methods_ui <- function(id) {
@@ -130,8 +131,9 @@ mod_methods_ui <- function(id) {
             tags$li("Random Forest (ensemble)"),
             tags$li(tags$strong("XGBoost (selected)"))
           ),
+          # Stage 2.5: Fixed causal language - "accounts for" → appropriate hedging
           p(style = paste0("font-size: 0.9em; color: ", colors$text_secondary),
-            "XGBoost was selected for best CV performance (R² = 0.83). 
+            "XGBoost was selected for best CV performance (R² = 0.84). 
              Registration-to-start is the strongest signal in this dataset and 
              dominates importance metrics; it may reflect a mix of startup 
              complexity and registry update patterns.")
