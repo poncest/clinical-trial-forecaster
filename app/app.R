@@ -21,7 +21,7 @@ source("modules/mod_performance.R")
 source("modules/mod_methods.R")
 
 # Source UI
-source("R/ui_main.R")
+source("ui.R")
 
 # =============================================================================
 # SERVER

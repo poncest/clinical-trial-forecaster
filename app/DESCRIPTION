@@ -1,0 +1,3 @@
+Type: shiny
+Imports: shiny, shiny.semantic, semantic.dashboard, dplyr, tidyr, ggplot2, scales, ggiraph, reactable, reactablefmtr, workflows, parsnip, recipes, cli, rlang
+

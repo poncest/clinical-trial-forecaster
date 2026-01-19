@@ -2,6 +2,28 @@
 # Clinical Trial Duration Forecaster - Main UI
 # =============================================================================
 
+library(shiny.semantic)
+
+colors <- list(
+  primary = "#0077B6",       
+  primary_dark = "#023E8A", 
+  primary_light = "#48CAE4",
+  
+  accent = "#006D77",        
+  accent_light = "#83C5BE", 
+  success = "#2E7D32",       
+  warning = "#ED6C02",
+  danger = "#D32F2F",
+  
+  text_primary = "#1A1A2E",
+  text_secondary = "#4A4A68",
+  text_muted = "#6B7280",
+  
+  background = "#F8FAFC",
+  card_bg = "#FFFFFF",
+  border = "#E2E8F0"
+)
+
 ui <- semanticPage(
   title = "Clinical Trial Duration Forecaster",
   

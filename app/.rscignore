@@ -1,36 +1,3 @@
-# Exclude from shinyapps.io deployment
-
-# Development files
-renv/library
-renv/staging
-renv/python
-.Rproj.user
-rsconnect
-
-# Documentation
-*.md
 docs/
-screenshots/
-*.qmd
-
-# Scripts (not needed at runtime)
-scripts/
-
-# Raw data (only processed data needed)
-data-raw/
-
-# Local configuration
-.Renviron
-.Rprofile
-
-# Version control
-.git
-.gitignore
-
-# IDE files
 *.Rproj
-.vscode/
 
-# Temporary files
-*.log
-*.tmp

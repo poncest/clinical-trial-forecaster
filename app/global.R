@@ -9,6 +9,13 @@
 # -----------------------------------------------------------------------------
 # Load Packages (explicit imports, no tidyverse meta-package)
 # -----------------------------------------------------------------------------
+
+# Force dependency detection for shinyapps.io
+if (FALSE) {
+  library(shiny.semantic)
+  library(semantic.dashboard)  
+}
+
 library(shiny)
 library(shiny.semantic)
 library(dplyr)

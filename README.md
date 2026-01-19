@@ -1,163 +1,233 @@
 # Clinical Trial Duration Forecaster
 
-[![R](https://img.shields.io/badge/R-4.3+-blue.svg)](https://www.r-project.org/)
-[![Shiny](https://img.shields.io/badge/Shiny-Dashboard-brightgreen.svg)](https://shiny.posit.co/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+*A portfolio case study in validation-first analytics using ClinicalTrials.gov oncology trials*
 
-> Predictive analytics dashboard for clinical trial duration forecasting using machine learning and public registry data.
+![R](https://img.shields.io/badge/R-276DC3?style=for-the-badge&logo=r&logoColor=white) ![Shiny](https://img.shields.io/badge/Shiny-1A162D?style=for-the-badge&logo=rstudio&logoColor=white) ![Status](https://img.shields.io/badge/Status-Active-2ECC71?style=for-the-badge) ![License](https://img.shields.io/badge/License-MIT-A8E10C?style=for-the-badge) ![Appsilon](https://img.shields.io/badge/Framework-Appsilon-0B6E6E?style=for-the-badge)
 
-## 🎯 Overview
+------------------------------------------------------------------------
 
-This dashboard demonstrates end-to-end predictive analytics capabilities by forecasting clinical trial duration based on trial characteristics. The model was trained on 2,057 completed oncology trials from ClinicalTrials.gov and achieves **R² = 0.79** on held-out test data.
+## Overview
 
-### Strategic Questions Addressed
+This project demonstrates **end-to-end predictive analytics** for clinical trial duration modeling—and why **validation strategy matters more than model selection**.
 
-1. **How long will this trial take?** — Interactive prediction tool for planning
-2. **What drives duration?** — Feature importance analysis reveals key predictors
-3. **How reliable are estimates?** — Model diagnostics and validation metrics
-4. **Where are the limits?** — Transparent methodology and limitations
+Initial random validation suggested strong performance (**R² = 0.84**). A time-based validation split—appropriate for prospective use—revealed minimal predictive power (**R² ≈ 0.04**).
 
-## 📊 Model Performance
+**The finding is the insight:** realistic validation prevents overconfident forecasting from registry data.
 
-| Metric | Value |
-|--------|-------|
-| R² (Test Set) | 0.790 |
-| RMSE (log scale) | 0.652 |
-| Median Absolute Error | 9.6 months |
-| Mean Absolute Error | 18.1 months |
+------------------------------------------------------------------------
 
-### Top Predictors
+## Live Dashboard
 
-1. **Registration-to-Start Time** — Days from registration to first patient (dominant predictor)
-2. **Number of Sites** — Trial operational complexity
-3. **Enrollment Size** — Target sample size
-4. **Enrollment per Site** — Site burden ratio
-5. **Number of Countries** — Geographic complexity
+🔗 **Interactive dashboard (ShinyApps.io):** [Clinical Trial Duration Forecaster](https://0l6jpd-steven-ponce.shinyapps.io/clinical-trial-forecaster/)
+------------------------------------------------------------------------
 
-## 🖥️ Dashboard Features
+## Key Finding
+
+| Validation Approach | Test R² | Test Median Absolute Error | Interpretation |
+|-----------------|----------------:|---------------------:|-----------------|
+| Random Split | 0.84 | 7.4 months | Over-optimistic (temporal leakage) |
+| **Time-Based Split** | **0.04** | **21.2 months** | **Honest prospective estimate** |
+
+### Why the gap?
+
+-   **Temporal drift:** Trial durations shortened substantially across eras (median \~82 → \~53 months in this dataset)
+-   **Registry limitations:** ClinicalTrials.gov lacks protocol complexity, endpoint strategy, and competitive dynamics
+-   **Evolving practices:** Adaptive designs, biomarker selection, and regulatory changes altered duration drivers over time
+
+This is not "model failure"—it shows why validation must match the intended decision context.
+
+------------------------------------------------------------------------
+
+## Dashboard Preview
 
 ### Executive Brief
-![Executive Brief](screenshots/executive_brief.png)
-*High-level model summary with key metrics and strategic insights*
 
-### Duration Forecaster
-![Duration Forecaster](screenshots/forecaster.png)
-*Interactive prediction interface with contextual comparison*
+![Executive Brief](screenshots/executive_brief.png) *Key metrics with honest R² = 0.04 and model summary*
+
+### Duration Forecaster (Scenario Sandbox)
+
+![Duration Forecaster](screenshots/forecaster.png) *Interactive tool showing how the model behaves—not for operational planning*
 
 ### Feature Explorer
-![Feature Explorer](screenshots/features.png)
-*Feature importance visualization and distribution analysis*
+
+![Feature Explorer](screenshots/feature_explorer.png) *Coefficient analysis and feature distributions*
 
 ### Model Performance
-![Model Performance](screenshots/performance.png)
-*Diagnostic plots, validation metrics, and model comparison*
+
+![Model Performance](screenshots/performance.png) *Diagnostic plots with actual error analysis by phase and sponsor*
 
 ### Methods & Data
-*Comprehensive documentation of data sources, methodology, and limitations*
 
-## 🚀 Getting Started
+![Methods & Data](screenshots/methods.png) *Validation Lessons panel explaining why metrics can mislead*
 
-### Prerequisites
+------------------------------------------------------------------------
 
-```r
-# Required packages
-install.packages(c(
-  "shiny", "shiny.semantic", 
-  "dplyr", "tidyr", "ggplot2", "scales",
-  "ggiraph", "reactable", "reactablefmtr",
-  "workflows", "parsnip", "recipes"
-))
+## Purpose (and Boundaries)
+
+The dashboard helps answer:
+
+-   How do registry-level trial characteristics relate to historical duration?
+-   What are the limits of registry-based forecasting in oncology?
+-   How does validation choice change conclusions?
+-   Where does the model fail, and why?
+
+**This tool is intended for methodology and pattern understanding—not operational planning.**
+
+------------------------------------------------------------------------
+
+## What This Dashboard Does *Not* Do
+
+To avoid overreach, this project does **not**:
+
+-   Provide reliable prospective duration forecasts for planning
+-   Recommend protocol or design decisions
+-   Predict clinical success, approvals, or outcomes
+-   Substitute for protocol-level feasibility analysis
+
+All results are conditional on historical registry patterns that may not persist.
+
+------------------------------------------------------------------------
+
+## Analytical Framework
+
+### Data Pipeline
+
+1.  **Acquisition:** ClinicalTrials.gov API v2 (pulled January 2026)
+2.  **Cohort:** Interventional, treatment-purpose oncology trials (keyword-based condition query; imperfect)
+3.  **Outcome:** Duration in months from **Start Date → Completion Date** (includes follow-up; not equivalent to LPLV)
+4.  **Features:** Enrollment, sites, countries, sponsor type, phase, derived ratios/log transforms
+5.  **Model:** **Elastic Net (glmnet)** via tidymodels
+
+### Validation Strategy (Time-Based)
+
+```         
+Training:  Trials with start date ≤2015 (n=546)
+Test:      Trials with start date 2016–2018 (n=340)
+Excluded:  Trials with start date ≥2019 (n=878, right-truncation bias)
 ```
 
-### Running Locally
+Trials starting in 2019+ were excluded because only shorter-duration studies from that era are fully completed and present in the dataset as of the January 2026 data pull. Including them would bias observed durations downward.
 
-```r
-# Clone repository
-# Navigate to app directory
-setwd("clinical-trial-forecaster/app")
+### Model Comparison (CV within training data)
 
-# Run app
-shiny::runApp()
-```
+| Model             |     CV R² | CV RMSE (log-months) |
+|-------------------|----------:|---------------------:|
+| **Elastic Net**   | **0.225** |            **0.486** |
+| Linear Regression |     0.219 |                0.488 |
+| Random Forest     |     0.212 |                0.493 |
+| XGBoost           |     0.205 |                0.491 |
 
-### Data Files Required
+**Final model used in the dashboard:** Elastic Net (glmnet)
 
-Place these files in `app/data/processed/`:
-- `final_workflow.rds` — Trained Random Forest model
-- `trials_features.rds` — Feature data for reference
-- `feature_importance.rds` — Variable importance scores
-- `model_comparison.csv` — Model comparison results
-- `test_predictions.csv` — Test set predictions
+------------------------------------------------------------------------
 
-## 📁 Project Structure
+## Data Sources
 
-```
+-   **ClinicalTrials.gov** (U.S. National Library of Medicine)
+-   **API v2**, accessed January 2026
+
+### Inclusion Criteria
+
+-   Interventional studies
+-   Primary purpose: treatment
+-   Phase 1/2, 2, 2/3, or 3
+-   Completed with valid start/completion dates
+-   Actual enrollment (final posted value)
+-   Duration 1–180 months
+
+### Data Quality Notes
+
+-   Registry fields are self-reported and updated over time
+-   Historical snapshots are not available in this build
+-   Oncology cohort defined via keyword-based registry fields (imperfect)
+
+------------------------------------------------------------------------
+
+## Key Design Principles
+
+-   **Validation-first thinking** — Match strategy to use case
+-   **Transparency over performance** — Report honest metrics
+-   **Explainability over complexity** — Linear model over black box
+-   **Appropriate restraint** — Document what the tool cannot do
+-   **Decision support, not automation** — Inform, don't prescribe
+
+------------------------------------------------------------------------
+
+## Limitations
+
+-   Oncology cohort defined via keyword-based registry fields (imperfect)
+-   Registry fields are self-reported and updated over time
+-   Limited prospective predictive power (R² ≈ 0.04)
+-   Temporal drift may continue beyond observed patterns
+-   Survivorship bias (completed trials only)
+
+------------------------------------------------------------------------
+
+## Repository Structure
+
+```         
 clinical-trial-forecaster/
 ├── app/
-│   ├── app.R                    # Main entry point
-│   ├── global.R                 # Load packages, data, helpers
-│   ├── R/
-│   │   └── ui_main.R            # Main UI layout
+│   ├── app.R                    # Entry point
+│   ├── global.R                 # Data loading, metrics, helpers
+│   ├── ui.R                     # Main UI definition (moved from R/)
+│   ├── DESCRIPTION              # Package dependencies for shinyapps.io
 │   ├── modules/
 │   │   ├── mod_executive_brief.R
 │   │   ├── mod_forecaster.R
 │   │   ├── mod_features.R
 │   │   ├── mod_performance.R
 │   │   └── mod_methods.R
-│   ├── data/processed/          # Model and data files
+│   ├── models/                  # Trained model artifacts
+│   │   ├── final_workflow.rds
+│   │   ├── feature_importance.rds
+│   │   ├── model_comparison.csv
+│   │   └── test_predictions.csv
+│   ├── data-raw/                # Trial data
 │   └── www/
-│       └── styles.css           # Custom styling
-├── scripts/                     # Data pipeline scripts
-├── models/                      # Saved model artifacts
+│       └── styles.css
+├── scripts/                     # Data pipeline
+│   ├── 01_data_acquisition.R
+│   ├── 02_data_exploration.R
+│   ├── 03_feature_engineering.R
+│   └── 04_modeling.R
 ├── docs/                        # Diagnostic plots
-└── screenshots/                 # README images
+└── screenshots/
 ```
 
-## 🔬 Methodology
+------------------------------------------------------------------------
 
-### Data Pipeline
+## Technical Stack
 
-1. **Data Acquisition** — ClinicalTrials.gov API (v2) for oncology trials
-2. **Data Filtering** — Phase 2/3, completed, valid dates
-3. **Feature Engineering** — Log transforms, ratios, categorical encoding
-4. **Model Training** — 10-fold CV, hyperparameter tuning
-5. **Evaluation** — Test set validation, diagnostics
+-   **Language:** R
+-   **Framework:** Shiny (modular architecture)
+-   **UI Components:** shiny.semantic (Appsilon)
+-   **Visualization:** ggplot2, ggiraph, reactable
+-   **ML Framework:** tidymodels
+-   **Deployment:** ShinyApps.io
 
-### Model Selection
+------------------------------------------------------------------------
 
-| Model | CV RMSE | CV R² |
-|-------|---------|-------|
-| **Random Forest** | **0.581** | **0.832** |
-| XGBoost | 0.584 | 0.830 |
-| Elastic Net | 0.678 | 0.771 |
-| Linear Regression | 0.679 | 0.770 |
+## License
 
-Random Forest selected for competitive performance with interpretability.
+This project is released under the **MIT License**.
 
-## ⚠️ Limitations
+------------------------------------------------------------------------
 
-- **Oncology-specific** — Model trained only on oncology trials
-- **Survivorship bias** — Only completed trials included
-- **Registry data** — Lacks protocol-level detail
-- **Historical patterns** — May not capture recent operational changes
+## Disclaimer
 
-## 📚 References
+This project is for **educational and portfolio purposes only**.
 
-- ClinicalTrials.gov — [https://clinicaltrials.gov](https://clinicaltrials.gov)
-- tidymodels — [https://tidymodels.org](https://tidymodels.org)
-- shiny.semantic — [https://appsilon.github.io/shiny.semantic/](https://appsilon.github.io/shiny.semantic/)
+It does not constitute clinical, operational, or planning advice. All parameters are derived from publicly available registry data. No representation is made regarding applicability to specific trial contexts.
 
-## 👤 Author
+------------------------------------------------------------------------
 
-**Steven Ponce**
-- Portfolio: [stevenponce.com](https://stevenponce.com)
-- LinkedIn: [linkedin.com/in/stevenponce](https://linkedin.com/in/stevenponce)
-- GitHub: [github.com/poncest](https://github.com/poncest)
+## Contact
 
-## 📄 License
+**Steven Ponce** Data Analyst \| R Shiny Developer \| Business Intelligence Specialist
 
-This project is licensed under the MIT License.
+🔗 **Portfolio Website**: [stevenponce.netlify.app](https://stevenponce.netlify.app/projects.html) 🐙 **GitHub**: [\@poncest](https://github.com/poncest) 💼 **LinkedIn**: [stevenponce](https://www.linkedin.com/in/stevenponce/) 🦋 **Bluesky**: [\@sponce1](https://bsky.app/profile/sponce1.bsky.social)
 
----
+------------------------------------------------------------------------
 
-*Built as a portfolio demonstration of predictive analytics and dashboard development capabilities.*
+*Prepared by Steven Ponce as part of a professional analytics portfolio.* *Demonstrating that honest validation findings—even when they reveal limitations—are more valuable than inflated metrics.*
