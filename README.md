@@ -18,13 +18,12 @@ Initial random validation suggested strong performance (**R² = 0.84**). A time-
 
 ## Live Dashboard
 
-🔗 **Interactive dashboard (ShinyApps.io):** [Clinical Trial Duration Forecaster](https://0l6jpd-steven-ponce.shinyapps.io/clinical-trial-forecaster/)
-------------------------------------------------------------------------
+## 🔗 **Interactive dashboard (ShinyApps.io):** [Clinical Trial Duration Forecaster](https://0l6jpd-steven-ponce.shinyapps.io/clinical-trial-forecaster/)
 
 ## Key Finding
 
 | Validation Approach | Test R² | Test Median Absolute Error | Interpretation |
-|-----------------|----------------:|---------------------:|-----------------|
+|----|---:|---:|----|
 | Random Split | 0.84 | 7.4 months | Over-optimistic (temporal leakage) |
 | **Time-Based Split** | **0.04** | **21.2 months** | **Honest prospective estimate** |
 
@@ -50,7 +49,7 @@ This is not "model failure"—it shows why validation must match the intended de
 
 ### Feature Explorer
 
-![Feature Explorer](screenshots/feature_explorer.png) *Coefficient analysis and feature distributions*
+![Feature Explorer](screenshots/explorer.png) *Coefficient analysis and feature distributions*
 
 ### Model Performance
 
