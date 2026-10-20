@@ -14,8 +14,9 @@ mod_executive_brief_ui <- function(id) {
       class = "tab-header",
       h2(class = "tab-title", "Executive Brief"),
       p(class = "tab-subtitle", 
-        "Clinical trial duration forecasting model trained on ", 
-        format(app_info$n_trials, big.mark = ","), " oncology trials")
+        "Clinical trial duration model trained on ",
+        format(app_info$n_train, big.mark = ","), " oncology trials (started 2015 or earlier) and tested on ",
+        format(app_info$n_test, big.mark = ","), " later trials (2016-2018)")
     ),
     
     # KPI Row
@@ -50,9 +51,10 @@ mod_executive_brief_ui <- function(id) {
         class = "column",
         div(
           class = "kpi-card",
-          div(class = "kpi-value", format(app_info$n_trials, big.mark = ",")),
+          div(class = "kpi-value", format(app_info$n_train, big.mark = ",")),
           div(class = "kpi-label", "Training Trials"),
-          div(class = "kpi-context", "Completed oncology studies")
+          div(class = "kpi-context",
+              paste0("Started 2015 or earlier; tested on ", format(app_info$n_test, big.mark = ",")))
         )
       ),
       
