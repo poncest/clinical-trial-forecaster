@@ -45,7 +45,7 @@ This is not "model failure"—it shows why validation must match the intended de
 
 ### Duration Forecaster (Scenario Sandbox)
 
-![Duration Forecaster](screenshots/forecaster.png) *Interactive tool showing how the model behaves—not for operational planning*
+![Duration Forecaster](screenshots/forecaster.png) *Interactive tool showing how the model behaves, with an empirical likely range from test-set errors—not for operational planning*
 
 ### Feature Explorer
 
