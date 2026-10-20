@@ -377,11 +377,11 @@ mod_methods_ui <- function(id) {
         class = "insight-box",
         style = paste0("border-left-color: ", colors$warning, ";"),
         h4(style = "margin-top: 0;", "Prediction Timepoint Assumption"),
-        p("The top predictor (registration-to-start lag) is only known ", tags$em("after"), 
-          " study startup. This model is best suited for predictions made at or after study 
-           start, not for early planning when startup time must itself be estimated. For 
-           pre-startup forecasting, treat the startup lag input as an assumption to be 
-           validated.")
+        p("The registration-to-start lag input is only known ", tags$em("after"),
+          " study startup. It was the strongest predictor in an earlier random-split model,
+           but carries little weight in the final time-based model, where sponsor type
+           dominates. For pre-startup forecasting, treat the startup lag input as an
+           assumption to be validated.")
       ),
       
       div(

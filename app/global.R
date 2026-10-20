@@ -167,7 +167,10 @@ app_info <- list(
   subtitle = "Predictive Analytics for Trial Planning",
   version = "1.3.0",  # Stage 3: Time-based validation with documented limitations
   data_source = "ClinicalTrials.gov",
-  n_trials = nrow(trials_data),
+  n_trials = nrow(trials_data),  # full cohort (includes 2019+ trials excluded from modeling)
+  # Modeling split (time-based): train <= 2015, test 2016-2018
+  n_train = if (!is.null(temporal_split_info)) temporal_split_info$train_n else NA_integer_,
+  n_test  = if (!is.null(temporal_split_info)) temporal_split_info$test_n else NA_integer_,
   therapeutic_area = "Oncology",
   phases = "Phase 2, Phase 2/3, Phase 3",
   model_type = "Elastic Net",  # Updated from XGBoost - best performer in Stage 3

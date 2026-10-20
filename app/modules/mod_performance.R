@@ -78,8 +78,9 @@ mod_performance_ui <- function(id) {
              "Actual vs Predicted Duration"),
           girafeOutput(ns("actual_vs_predicted"), height = "350px"),
           p(style = paste0("font-size: 0.85em; color: ", colors$text_muted, "; margin-top: 0.5em;"),
-            "Points close to the diagonal line indicate accurate predictions. 
-             The model tends to slightly underpredict for very long trials.")
+            "Points on the diagonal would be perfect predictions. Most points sit above it:
+             the model predicts longer durations than 2016-2018 trials actually took,
+             and predictions cluster in a narrow band regardless of actual duration.")
         )
       ),
       
@@ -92,8 +93,17 @@ mod_performance_ui <- function(id) {
              "Prediction Error Distribution"),
           girafeOutput(ns("residual_dist"), height = "350px"),
           p(style = paste0("font-size: 0.85em; color: ", colors$text_muted, "; margin-top: 0.5em;"),
-            "Errors are roughly symmetric around zero, indicating no systematic bias. 
-             The slight positive skew reflects underprediction on very long trials.")
+            local({
+              err <- test_predictions$residual_months  # actual minus predicted
+              paste0(
+                "Error = actual minus predicted. The median error is ",
+                sprintf("%.1f", median(err, na.rm = TRUE)), " months, and ",
+                round(100 * mean(err < 0, na.rm = TRUE)), "% of 2016-2018 test trials ",
+                "finished sooner than predicted. The model learned from longer pre-2016 trials, ",
+                "so it systematically overestimates later ones: this is the temporal drift ",
+                "described in Methods & Data."
+              )
+            }))
         )
       )
     ),
@@ -106,8 +116,9 @@ mod_performance_ui <- function(id) {
       h3(style = paste0("color: ", colors$primary_dark, "; margin-top: 0;"),
          icon("balance scale"), " Model Comparison"),
       p(style = paste0("color: ", colors$text_secondary),
-        "Four model types were trained and compared using 10-fold cross-validation. 
-         Elastic Net was selected for best performance on the time-based validation set."),
+        "Four model types were compared using 10-fold cross-validation within the training
+         data (trials started 2015 or earlier). Elastic Net had the best cross-validated
+         performance. The 2016-2018 test set was used once, for the final evaluation only."),
       
       reactableOutput(ns("model_comparison_table"))
     ),

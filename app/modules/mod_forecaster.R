@@ -62,7 +62,7 @@ mod_forecaster_ui <- function(id) {
           numericInput(ns("countries"), "Number of Countries", value = 5, min = 1, max = 50),
           numericInput(ns("reg_to_start"), "Startup Lag (days)", value = 180, min = 0, max = 1000),
           p(style = paste0("font-size: 0.8em; color: ", colors$text_muted, "; margin-top: 5px; margin-bottom: 15px;"),
-            tags$em("Top predictor - only known after startup")),
+            tags$em("Only known after startup; carries little weight in this model")),
           
           actionButton(ns("predict"), 
                        label = tagList(icon("play"), " Generate Prediction"),
@@ -113,8 +113,9 @@ mod_forecaster_ui <- function(id) {
             tags$strong("What the prediction means"),
             p(style = "margin-top: 0.5em;",
               "The predicted duration represents expected time from study start to 
-             completion date, based on patterns in ", 
-              format(app_info$n_trials, big.mark = ","), " completed oncology trials.")),
+             completion date, based on patterns in ",
+              format(app_info$n_train, big.mark = ","), " completed oncology trials that started
+             in 2015 or earlier.")),
         div(class = "column",
             tags$strong("Prediction timepoint"),
             p(style = "margin-top: 0.5em;",
