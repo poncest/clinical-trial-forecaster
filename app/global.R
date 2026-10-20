@@ -103,7 +103,13 @@ ref_stats <- list(
   duration_values = modeling_data$duration_months,  # reference for percentiles
   baseline_n = nrow(modeling_data),
   baseline_cutoff = modeling_cutoff,
-  
+
+  # Empirical prediction band: log-scale residual quantiles (actual - predicted)
+  # from the 2016-2018 test set. Multiplying a prediction by exp(q) gives the
+  # range that test trials with similar predictions actually landed in.
+  resid_q = quantile(test_predictions$log_duration - test_predictions$.pred,
+                     c(0.10, 0.25, 0.75, 0.90), na.rm = TRUE),
+
   enrollment_median = median(enrollment_col, na.rm = TRUE),
   sites_median = median(trials_data$n_sites, na.rm = TRUE),
   countries_median = median(trials_data$n_countries, na.rm = TRUE),

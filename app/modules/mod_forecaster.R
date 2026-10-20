@@ -170,11 +170,21 @@ mod_forecaster_server <- function(id, trials_data, ref_stats, phase_levels, spon
             icon("calculator", style = "font-size: 2.5em; opacity: 0.3;"),
             p(style = "margin-top: 0.5em;", "Click 'Generate Prediction'"))
       } else {
+        band <- pred * exp(ref_stats$resid_q)  # 10%, 25%, 75%, 90%
         div(class = "prediction-result",
             div(class = "prediction-value", format_duration(pred)),
-            div(class = "prediction-label", "Predicted Trial Duration"),
+            div(class = "prediction-label", "Model Estimate"),
             div(style = "margin-top: 0.5em; font-size: 0.9em; opacity: 0.85;",
-                paste0("(", round(pred, 1), " months)")))
+                paste0("(", round(pred, 1), " months)")),
+            div(style = "margin-top: 1em; font-size: 0.9em; line-height: 1.5;",
+                tags$strong(paste0(round(band[1]), "–", round(band[4]), " months")),
+                " likely range",
+                br(),
+                span(style = "font-size: 0.85em; opacity: 0.85;",
+                     paste0("80% of 2016–2018 test trials finished within this range of their ",
+                            "estimate (middle half: ", round(band[2]), "–", round(band[3]),
+                            " months). The range sits mostly below the estimate because the ",
+                            "model overestimates recent trials."))))
       }
     })
     
