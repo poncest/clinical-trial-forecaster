@@ -65,7 +65,8 @@ mod_executive_brief_ui <- function(id) {
           class = "kpi-card",
           div(class = "kpi-value", uiOutput(ns("avg_duration"), inline = TRUE)),
           div(class = "kpi-label", "Average Trial Duration"),
-          div(class = "kpi-context", "Historical baseline")
+          div(class = "kpi-context",
+              paste0("Trials started ", ref_stats$baseline_cutoff, " or earlier"))
         )
       )
     ),

@@ -184,14 +184,16 @@ mod_forecaster_server <- function(id, trials_data, ref_stats, phase_levels, spon
       if (is.null(pred)) {
         p(style = "color: #666;", "Generate a prediction to see comparison")
       } else {
-        percentile <- round(mean(trials_data$duration_months <= pred, na.rm = TRUE) * 100, 0)
+        # Compare against the modeling cohort (started <= 2018), not the full
+        # registry pull, whose 2019+ trials are right-truncated
+        percentile <- round(mean(ref_stats$duration_values <= pred, na.rm = TRUE) * 100, 0)
         vs_median <- round(((pred / ref_stats$duration_median) - 1) * 100, 0)
-        
+
         if (percentile < 50) {
-          interp <- "below average duration"
+          interp <- "shorter than the median historical trial"
           interp_color <- colors$success
         } else {
-          interp <- "above average duration"
+          interp <- "longer than the median historical trial"
           interp_color <- colors$warning
         }
         
@@ -212,7 +214,8 @@ mod_forecaster_server <- function(id, trials_data, ref_stats, phase_levels, spon
                   div(style = paste0("font-size: 0.8em; color: ", colors$text_muted), "vs. median duration")),
               div(class = "column", style = "text-align: center;",
                   div(style = "font-size: 1.4em; font-weight: 600;", paste0(round(ref_stats$duration_median, 0), " mo")),
-                  div(style = paste0("font-size: 0.8em; color: ", colors$text_muted), "historical median"))),
+                  div(style = paste0("font-size: 0.8em; color: ", colors$text_muted),
+                      paste0("median, trials started ", ref_stats$baseline_cutoff, " or earlier")))),
           
           # Interpretation
           div(style = paste0("margin-top: 1em; padding: 0.7em; background: ", colors$background, "; border-radius: 6px; border-left: 3px solid ", interp_color, ";"),
