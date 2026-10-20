@@ -420,6 +420,19 @@ mod_methods_ui <- function(id) {
            updated inconsistently throughout the trial lifecycle. Enrollment values 
            in the training data reflect 'actual' (final) enrollment, not 'anticipated' 
            enrollment available at planning time.")
+      ),
+
+      div(
+        class = "insight-box",
+        h4(style = "margin-top: 0;", "Cohort Definition (Sensitivity-Checked)"),
+        p("The oncology cohort comes from a keyword-based registry query, so some trials
+           are not oncology (e.g., uterine fibroids, rheumatoid arthritis). About 8% of
+           modeled trials (70 of 886) list no cancer term in their conditions field; this
+           crude filter also flags some true oncology trials (e.g., 'Recurrent GBM').
+           Refitting without them changes test R² from 0.043 to 0.047 and median absolute
+           error from 21.2 to 19.3 months, with the same top predictors and the same
+           ~18-month over-prediction. Conclusions are unchanged. See
+           scripts/05_sensitivity_oncology_filter.R.")
       )
     ),
     
