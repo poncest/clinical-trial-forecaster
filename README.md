@@ -154,7 +154,7 @@ Trials starting in 2019+ were excluded because only shorter-duration studies fro
 
 ## Limitations
 
--   Oncology cohort defined via keyword-based registry fields (imperfect)
+-   Oncology cohort defined via keyword-based registry fields (imperfect). About 8% of modeled trials (70 of 886) list no cancer term in their conditions field. Refitting without them changes test R² from 0.043 to 0.047 and median absolute error from 21.2 to 19.3 months; conclusions are unchanged (`scripts/05_sensitivity_oncology_filter.R`).
 -   Registry fields are self-reported and updated over time
 -   Limited prospective predictive power (R² ≈ 0.04)
 -   Temporal drift may continue beyond observed patterns

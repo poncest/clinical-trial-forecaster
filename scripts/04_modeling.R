@@ -3,7 +3,7 @@
 # Clinical Trial Forecaster - Model Training & Evaluation
 # ============================================================================
 # Purpose: Train, tune, compare, and select best forecasting model
-# Stage 3: Time-based validation (train ≤2018, test ≥2019)
+# Stage 3: Time-based validation (train ≤2015, test 2016-2018; 2019+ excluded)
 # Author:  Steven Ponce
 # Date:    January 2026
 # ============================================================================
@@ -38,7 +38,7 @@ cat("============================================================\n")
 cat("🤖 Model Training & Evaluation - STAGE 3\n")
 cat("============================================================\n")
 cat("Clinical Trial Duration Forecasting\n")
-cat("Time-Based Validation: Train ≤2018, Test ≥2019\n")
+cat("Time-Based Validation: Train ≤2015, Test 2016-2018\n")
 cat("============================================================\n\n")
 
 # ----------------------------------------------------------------------------
@@ -446,7 +446,7 @@ toc <- Sys.time()
 cat("   ✓ Final model trained in", round(difftime(toc, tic, units = "secs"), 1), "seconds\n")
 
 # ----------------------------------------------------------------------------
-# Step 11: Evaluate on Hold-Out Test Set (Future trials: ≥2019)
+# Step 11: Evaluate on Hold-Out Test Set (Later trials: 2016-2018)
 # ----------------------------------------------------------------------------
 
 cat("\n")
