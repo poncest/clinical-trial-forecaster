@@ -53,7 +53,6 @@ viz_packages <- c(
   "ggplot2",
   "ggiraph",
   "reactable",
-  "reactablefmtr",
   "scales",
   "ggtext",
   "patchwork"
