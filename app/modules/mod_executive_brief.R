@@ -239,8 +239,10 @@ mod_executive_brief_server <- function(id, trials_data, model_metrics, ref_stats
             Variable == "log_enrollment" ~ "Enrollment Size",
             Variable == "log_enrollment_per_site" ~ "Enrollment/Site",
             Variable == "n_countries" ~ "Countries",
-            grepl("sponsor_simple", Variable) ~ gsub("sponsor_simple_", "Sponsor: ", Variable),
-            grepl("phase_simple", Variable) ~ gsub("phase_simple_", "", Variable),
+            # Dummy-variable names use "." for "/" and spaces; restore readable labels
+            grepl("sponsor_simple", Variable) ~ gsub("\\.", "/",
+                                                     gsub("sponsor_simple_", "Sponsor: ", Variable)),
+            grepl("phase_simple", Variable) ~ gsub("\\.", " ", gsub("phase_simple_", "", Variable)),
             TRUE ~ gsub("_", " ", Variable)
           ),
           feature_label = factor(feature_label, levels = rev(feature_label))
@@ -250,7 +252,7 @@ mod_executive_brief_server <- function(id, trials_data, model_metrics, ref_stats
       p <- ggplot(top_features, aes(x = Importance, y = feature_label)) +
         geom_col_interactive(
           aes(
-            tooltip = paste0(feature_label, "\nImportance: ", round(Importance, 0)),
+            tooltip = paste0(feature_label, "\nCoefficient magnitude: ", round(Importance, 2)),
             data_id = Variable
           ),
           fill = colors$primary,

@@ -182,15 +182,18 @@ clinical-trial-forecaster/
 │   │   ├── feature_importance.rds
 │   │   ├── model_comparison.csv
 │   │   └── test_predictions.csv
-│   ├── data-raw/                # Trial data
+│   ├── data-raw/
+│   │   ├── modeling/            # Feature table read by the app
+│   │   └── cache/               # Jan 2026 ClinicalTrials.gov snapshot (not deployed)
+│   ├── docs/                    # Diagnostic plots (not deployed)
 │   └── www/
 │       └── styles.css
 ├── scripts/                     # Data pipeline
+│   ├── 00_setup.R
 │   ├── 01_data_acquisition.R
 │   ├── 02_data_exploration.R
 │   ├── 03_feature_engineering.R
 │   └── 04_modeling.R
-├── docs/                        # Diagnostic plots
 └── screenshots/
 ```
 

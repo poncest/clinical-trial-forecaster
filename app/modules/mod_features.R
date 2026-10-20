@@ -24,8 +24,9 @@ mod_features_ui <- function(id) {
       h3(style = paste0("color: ", colors$primary_dark, "; margin-top: 0;"), 
          "Feature Importance"),
       p(style = paste0("color: ", colors$text_secondary),
-        "Importance scores indicate how much each feature contributes to prediction accuracy. 
-         Higher values mean the feature has more influence on the model's predictions."),
+        "Bars show the absolute size of each Elastic Net coefficient (numeric features standardized). Larger values
+         mean the feature moves predictions more; they do not measure contribution to accuracy,
+         and they indicate association, not causation."),
       
       girafeOutput(ns("importance_chart"), height = "400px")
     ),
