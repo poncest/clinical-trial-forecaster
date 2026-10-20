@@ -54,13 +54,17 @@ mod_features_ui <- function(id) {
           class = "ui segment",
           h3(style = paste0("color: ", colors$primary_dark, "; margin-top: 0;"), 
              "Distribution Explorer"),
-          
+          p(style = paste0("font-size: 0.85em; color: ", colors$text_muted, ";"),
+            paste0("Trials that started in ", ref_stats$baseline_cutoff, " or earlier (n = ",
+                   format(ref_stats$baseline_n, big.mark = ","), "), the cohort used for modeling. ",
+                   "Later trials are excluded because only the shortest had finished by the data pull.")),
+
           selectInput(
             ns("selected_feature"),
             label = "Select feature to explore:",
             choices = c(
               "Trial Duration" = "duration_months",
-              "Target Enrollment" = "enrollment_count",
+              "Enrollment (actual)" = "enrollment_count",
               "Number of Sites" = "n_sites",
               "Number of Countries" = "n_countries",
               "Registration to Start (days)" = "registration_to_start"
@@ -236,7 +240,7 @@ mod_features_server <- function(id, trials_data, feature_importance) {
         Description = c(
           "Days from ClinicalTrials.gov registration to first patient enrolled",
           "Total investigator sites participating (log-transformed)",
-          "Target enrollment sample size (log-transformed)",
+          "Actual (final) enrollment as reported at completion (log-transformed)",
           "Average patients per site = enrollment / sites (log-transformed)",
           "Number of countries with participating sites",
           "Phase 2, Phase 1/2, Phase 2/3, or Phase 3",
@@ -315,13 +319,13 @@ mod_features_server <- function(id, trials_data, feature_importance) {
         scale_x_continuous(labels = comma_format()) +
         scale_y_continuous(labels = comma_format()) +
         labs(
-          x = names(which(c(
-            "duration_months" = "Trial Duration",
-            "enrollment_count" = "Target Enrollment",
+          x = unname(c(
+            "duration_months" = "Trial Duration (months)",
+            "enrollment_count" = "Enrollment (actual)",
             "n_sites" = "Number of Sites",
             "n_countries" = "Number of Countries",
             "registration_to_start" = "Registration to Start (days)"
-          ) == input$selected_feature)),
+          )[input$selected_feature]),
           y = "Number of Trials"
         ) +
         theme_minimal(base_size = 11) +

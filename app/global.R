@@ -88,11 +88,21 @@ enrollment_col <- if ("enrollment" %in% names(trials_data)) {
   NA
 }
 
+# Modeling cohort: trials that started by the end of the test window (2018).
+# Trials starting 2019+ are excluded from modeling because only the shorter ones
+# had completed by the data pull (median ~5 months), so including them would bias
+# any "historical" duration baseline sharply downward.
+modeling_cutoff <- if (!is.null(temporal_split_info)) temporal_split_info$test_end else 2018
+modeling_data <- trials_data[trials_data$start_year <= modeling_cutoff, ]
+
 ref_stats <- list(
-  duration_median = median(trials_data$duration_months, na.rm = TRUE),
-  duration_mean = mean(trials_data$duration_months, na.rm = TRUE),
-  duration_q25 = quantile(trials_data$duration_months, 0.25, na.rm = TRUE),
-  duration_q75 = quantile(trials_data$duration_months, 0.75, na.rm = TRUE),
+  duration_median = median(modeling_data$duration_months, na.rm = TRUE),
+  duration_mean = mean(modeling_data$duration_months, na.rm = TRUE),
+  duration_q25 = quantile(modeling_data$duration_months, 0.25, na.rm = TRUE),
+  duration_q75 = quantile(modeling_data$duration_months, 0.75, na.rm = TRUE),
+  duration_values = modeling_data$duration_months,  # reference for percentiles
+  baseline_n = nrow(modeling_data),
+  baseline_cutoff = modeling_cutoff,
   
   enrollment_median = median(enrollment_col, na.rm = TRUE),
   sites_median = median(trials_data$n_sites, na.rm = TRUE),
@@ -172,7 +182,7 @@ app_info <- list(
   n_train = if (!is.null(temporal_split_info)) temporal_split_info$train_n else NA_integer_,
   n_test  = if (!is.null(temporal_split_info)) temporal_split_info$test_n else NA_integer_,
   therapeutic_area = "Oncology",
-  phases = "Phase 2, Phase 2/3, Phase 3",
+  phases = "Phase 1/2, Phase 2, Phase 2/3, Phase 3",
   model_type = "Elastic Net",  # Updated from XGBoost - best performer in Stage 3
   data_pulled = "January 2026",
   model_trained = "January 2026",

@@ -310,7 +310,7 @@ ui <- semanticPage(
           "Analysis based on <strong>", format(app_info$n_trials, big.mark = ","), 
           " completed oncology trials</strong> from ",
           "<a href='https://clinicaltrials.gov' target='_blank'>ClinicalTrials.gov</a>. ",
-          "Includes Phase 2, Phase 2/3, and Phase 3 interventional trials with complete ",
+          "Includes Phase 1/2, Phase 2, Phase 2/3, and Phase 3 interventional trials with complete ",
           "duration data."
         ))),
         
