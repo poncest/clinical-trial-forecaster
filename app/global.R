@@ -96,6 +96,7 @@ modeling_data <- trials_data[trials_data$start_year <= modeling_cutoff, ]
 
 # Median duration by sponsor type in the modeling cohort (Executive Brief)
 sponsor_medians <- round(tapply(modeling_data$duration_months, modeling_data$sponsor_simple, median))
+phase_medians <- round(tapply(modeling_data$duration_months, modeling_data$phase_simple, median))
 
 # Readable labels for model terms (dummy names use "." for "/" and spaces).
 # Categorical terms name their reference level, since coefficients compare
@@ -130,15 +131,17 @@ ref_stats <- list(
   baseline_cutoff = modeling_cutoff,
 
   # Empirical prediction band: log-scale residual quantiles (actual - predicted)
-  # from the 2016-2018 test set. Multiplying a prediction by exp(q) gives the
-  # range that test trials with similar predictions actually landed in.
+  # pooled over the whole 2016-2018 test set. Multiplying a prediction by exp(q)
+  # gives a rough range; it is not conditional on the prediction, its 80%
+  # coverage holds on that same test set by construction, and the upper end is
+  # biased low because long test trials are missing (right-truncation).
   resid_q = quantile(test_predictions$log_duration - test_predictions$.pred,
                      c(0.10, 0.25, 0.75, 0.90), na.rm = TRUE),
 
   enrollment_median = median(enrollment_col, na.rm = TRUE),
   sites_median = median(trials_data$n_sites, na.rm = TRUE),
   countries_median = median(trials_data$n_countries, na.rm = TRUE),
-  reg_to_start_median = median(trials_data$registration_to_start, na.rm = TRUE),
+  reg_to_start_median = median(modeling_data$registration_to_start, na.rm = TRUE),
   
   n_trials = nrow(trials_data),
   phase_counts = table(trials_data$phase_simple),
@@ -163,7 +166,23 @@ sponsor_levels <- levels(trials_data$sponsor_simple)
 .err <- test_predictions$actual_months - test_predictions$predicted_months  # actual - predicted
 split_comparison <- read.csv("models/split_comparison.csv")
 .rand <- split_comparison[split_comparison$split == "random (mean of 5)", ]
+.rtrunc <- split_comparison[split_comparison$split == "random, truncation-matched (mean of 5)", ]
+# Counts behind the October 2026 correction note (scripts/07_date_parsing_audit.R)
+date_audit <- read.csv("models/date_parsing_audit.csv")
 .spec <- workflows::extract_spec_parsnip(final_workflow)
+# Models tied with the best on CV RMSE (within one SE of it), as in scripts/04
+.best <- model_comparison[which.min(model_comparison$rmse), ]
+tied_models <- model_comparison$model[model_comparison$rmse <= .best$rmse + .best$rmse_std_err]
+all_models_tied <- length(tied_models) == nrow(model_comparison)
+selection_note <- if (all_models_tied) {
+  paste0("All ", nrow(model_comparison), " models are within one standard error of the best CV RMSE, ",
+         "so they are effectively tied. Elastic Net was kept by a stated preference for a ",
+         "regularized linear model with readable coefficients.")
+} else {
+  paste0(paste(tied_models, collapse = ", "), " are within one standard error of the best CV RMSE. ",
+         "Elastic Net was kept by a stated preference for a regularized linear model with ",
+         "readable coefficients.")
+}
 sensitivity_file <- "models/sensitivity_oncology_filter.csv"
 sensitivity <- if (file.exists(sensitivity_file)) read.csv(sensitivity_file) else NULL
 
@@ -182,6 +201,17 @@ model_metrics <- list(
   random_split_r_squared = round(.rand$rsq_trad, 2),
   random_split_r_squared_cor = round(.rand$rsq_cor, 2),
   random_split_median_abs_error_months = round(.rand$median_abs_err_mo, 1),
+  random_split_rmse = round(.rand$rmse_log, 3),
+
+  # Random split scored only on test trials no longer than the longest
+  # time-based test trial: isolates the effect of the truncated test window
+  random_trunc_r_squared = round(.rtrunc$rsq_trad, 2),
+  random_trunc_r_squared_cor = round(.rtrunc$rsq_cor, 2),
+  random_trunc_median_abs_error_months = round(.rtrunc$median_abs_err_mo, 1),
+
+  # Level bias on the time-based test set (log scale, actual - predicted)
+  mean_log_resid = round(mean(.y - .p), 3),
+  pct_shorter_than_predicted = round(100 * (1 - exp(mean(.y - .p)))),
 
   # Fitted Elastic Net hyperparameters
   penalty = rlang::eval_tidy(.spec$args$penalty),
@@ -204,7 +234,11 @@ model_metrics <- list(
     trials_data$start_year <= temporal_split_info$train_cutoff &
       trials_data$duration_months <= max(test_predictions$actual_months)]), 1)
 )
-rm(.y, .p, .err, .rand, .spec)
+rm(.y, .p, .err, .rand, .rtrunc, .spec, .best)
+if (model_metrics$penalty <= 0.01) {
+  selection_note <- paste0(selection_note, " At the small penalty CV chose (", model_metrics$penalty,
+                           "), it is nearly identical to plain linear regression.")
+}
 
 # -----------------------------------------------------------------------------
 # Helper: tidy inline text in UI trees

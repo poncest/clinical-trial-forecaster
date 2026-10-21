@@ -94,17 +94,29 @@ mod_executive_brief_ui <- function(id) {
           # Finding 2
           div(
             class = "insight-box",
-            div(class = "insight-title", "Size Matters More Than Phase"),
-            p("Larger enrollment is associated with longer trials. Once size and sponsor are 
-               accounted for, Phase 3 and Phase 2/3 trials are not longer than Phase 2 trials: 
-               the raw difference between phases mostly reflects that later-phase trials are larger.")
+            div(class = "insight-title", "Phase Looks Different Once Size Is Accounted For"),
+            local({
+              est <- setNames(feature_importance$estimate, feature_importance$term)
+              # Phase dummies are 0/1 (created after normalization), so exp(coef) - 1
+              # is the predicted % difference vs Phase 2 at the same size and sponsor
+              dir <- function(term) paste0("about ", abs(round(100 * (exp(est[[term]]) - 1))), "% ",
+                                           if (isTRUE(est[[term]] < 0)) "shorter" else "longer")
+              p(paste0(
+                "Unadjusted, median duration is ", phase_medians[["Phase 2"]], " months for Phase 2 and ",
+                phase_medians[["Phase 3"]], " for Phase 3 trials. Larger enrollment is associated with ",
+if (isTRUE(est[["log_enrollment"]] < 0)) "shorter" else "longer", " trials, and once size and sponsor are in the model, Phase 3 and ",
+                "Phase 2/3 trials are predicted ", dir("phase_simple_Phase.3"), " and ",
+                dir("phase_simple_Phase.2.3"), ", respectively, than Phase 2 trials of the same size. ",
+                "Associations only; phase and size are entangled in observational data."
+              ))
+            })
           ),
           
           # Finding 3
           div(
             class = "insight-box",
             div(class = "insight-title", "Limited Forecasting Power"),
-            p(paste0("Registry features explain about ", round(100 * model_metrics$random_split_r_squared), "% of duration variance on a random split, but about ", round(100 * model_metrics$r_squared), "% for trials started after the training period. Protocol complexity, endpoint strategy and operational factors not captured in public data drive most of the variation."))
+            p(paste0("Registry features explain about ", round(100 * model_metrics$random_split_r_squared), "% of duration variance on a random split, but about ", round(100 * model_metrics$r_squared), "% for trials started after the training period (about ", round(100 * model_metrics$random_trunc_r_squared), "% on a random split scored on the same truncated test window, so part of the drop is the window itself). Protocol complexity, endpoint strategy and operational factors not captured in public data drive most of the variation."))
           )
         )
       ),
@@ -128,7 +140,7 @@ mod_executive_brief_ui <- function(id) {
               ),
               tags$tr(
                 tags$td(tags$strong("Features")),
-                tags$td("6 predictors")
+                tags$td(paste0("6 inputs (", nrow(feature_importance), " model terms)"))
               ),
               tags$tr(
                 tags$td(tags$strong("Training Method")),
@@ -174,7 +186,8 @@ mod_executive_brief_ui <- function(id) {
           p("A worked example of why validation must match intended use: the same model 
              scores R² ", sprintf("%.2f", model_metrics$random_split_r_squared),
             " on a random split and ", sprintf("%.2f", model_metrics$r_squared),
-            " on later trials. It also shows why independent review matters: an earlier 
+            " on later trials, and a truncation-matched check shows how much of that gap ",
+            "comes from the test window rather than time. It also shows why independent review matters: an earlier 
              version's R² of 0.84 came from a date-parsing bug (see Methods & Data).")
         ),
         

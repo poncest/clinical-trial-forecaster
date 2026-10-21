@@ -387,8 +387,9 @@ cat("STEP 9: Select Model\n")
 cat("------------------------------------------------------------\n\n")
 
 # Models whose CV RMSE is within one standard error of the best are treated as
-# tied. Among tied models, prefer the regularized linear model: interpretable
-# coefficients and shrinkage make it the most stable and explainable choice.
+# tied. Among tied models, a stated preference order picks the winner: the
+# regularized linear model first, for readable coefficients. (With the small
+# penalty CV tends to choose, it is close to plain linear regression.)
 preference <- c("Elastic Net", "Linear Regression", "Random Forest", "XGBoost")
 best_rmse  <- comparison_table$rmse[1]
 best_se    <- comparison_table$rmse_std_err[1]
@@ -398,7 +399,7 @@ best_model_name <- preference[preference %in% tied][1]
 cat("📊 Lowest CV RMSE:", comparison_table$model[1], "=", round(best_rmse, 4),
     "(SE", round(best_se, 4), ")\n")
 cat("📊 Tied within 1 SE:", paste(tied, collapse = ", "), "\n")
-cat("🏆 Selected:", best_model_name, "(simplest/most interpretable among tied models)\n")
+cat("🏆 Selected:", best_model_name, "(first in preference order among tied models)\n")
 
 # Get the selected workflow
 if (best_model_name == "Linear Regression") {

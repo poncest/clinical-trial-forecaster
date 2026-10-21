@@ -121,7 +121,7 @@ mod_features_ui <- function(id) {
           div(
             class = "insight-box",
             div(class = "insight-title", "Limited Predictive Power"),
-            p(paste0("These features explain about ", round(100 * model_metrics$random_split_r_squared), "% of duration variance on a random split and about ", round(100 * model_metrics$r_squared), "% for later trials. Protocol complexity, endpoints and operational factors not in the registry drive most of the variation."))
+            p(paste0("These features explain about ", round(100 * model_metrics$random_split_r_squared), "% of duration variance on a random split and about ", round(100 * model_metrics$r_squared), "% for later trials. Even the random-split figure is low: protocol complexity, endpoints and operational factors not in the registry drive most of the variation."))
           )
         )
       )
@@ -238,7 +238,9 @@ mod_features_server <- function(id, trials_data, feature_importance) {
           "Larger trials take longer but with diminishing marginal effect",
           "High burden per site can slow enrollment and data collection",
           "International trials add regulatory and logistical complexity",
-          "Raw medians differ by phase, but after size and sponsor the model finds Phase 3 not longer than Phase 2",
+          paste0("Adjusted for size and sponsor, Phase 3 is predicted ",
+                 ifelse(feature_importance$estimate[feature_importance$term == "phase_simple_Phase.3"] < 0,
+                        "shorter", "longer"), " than Phase 2"),
           "Largest association: non-industry sponsors run longer"
         ),
         stringsAsFactors = FALSE,

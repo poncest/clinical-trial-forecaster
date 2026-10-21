@@ -106,9 +106,10 @@ mod_performance_ui <- function(id) {
                 "Error = actual minus predicted. The median error is ",
                 sprintf("%.1f", median(err, na.rm = TRUE)), " months and ",
                 round(100 * mean(err < 0, na.rm = TRUE)), "% of 2016-2018 test trials ",
-                "finished sooner than predicted: a small bias, consistent with the test window ",
-                "excluding long trials that had not finished by the data pull. The spread, not ",
-                "the bias, is the main problem."
+                "finished sooner than predicted. On the log scale the bias is larger: test trials ran ",
+                "on average about ", model_metrics$pct_shorter_than_predicted, "% shorter than predicted, ",
+                "consistent with the test window excluding long trials that had not finished by the ",
+                "data pull. Both the bias and the wide spread lower R²."
               )
             }))
         )
@@ -123,12 +124,11 @@ mod_performance_ui <- function(id) {
       h3(style = paste0("color: ", colors$primary_dark, "; margin-top: 0;"),
          icon("balance scale"), " Model Comparison"),
       p(style = paste0("color: ", colors$text_secondary),
-        "Four model types were compared using 10-fold cross-validation within the training
+        paste("Four model types were compared using 10-fold cross-validation within the training
          data (trials started 2015 or earlier). All metrics in a row come from the same
-         configuration (the one with the best CV RMSE). All four are within one standard error
-         of each other on RMSE, so they are effectively tied and the simplest interpretable model,
-         Elastic Net, was kept. The 2016-2018 test set was not used for model selection; it was
-         used for the final evaluation and to size the forecaster's likely range."),
+         configuration (the one with the best CV RMSE); R² (CV) here is the squared correlation.",
+         selection_note, "The 2016-2018 test set was not used for model selection; it was
+         used for the final evaluation and to size the forecaster's likely range.")),
       
       reactableOutput(ns("model_comparison_table"))
     ),
@@ -153,7 +153,15 @@ mod_performance_ui <- function(id) {
         div(
           class = "column",
           h4("Error by Sponsor Type"),
-          girafeOutput(ns("error_by_sponsor"), height = "250px")
+          girafeOutput(ns("error_by_sponsor"), height = "250px"),
+          local({
+            n_by <- table(test_predictions$sponsor_simple)
+            small <- names(n_by)[n_by < 30]
+            if (length(small) > 0)
+              p(style = paste0("font-size: 0.85em; color: ", colors$text_muted, ";"),
+                paste0(paste(small, collapse = " and "), " have fewer than 30 test trials; ",
+                       "treat their bars as noisy."))
+          })
         )
       )
     ),
@@ -296,7 +304,7 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
           fontface = "bold",
           size = 3
         ) +
-        scale_x_continuous(limits = c(-100, 100)) +
+        scale_x_continuous(limits = c(-1, 1) * ceiling(max(abs(test_predictions$residual_months)) / 10) * 10) +
         labs(
           x = "Prediction Error (months)",
           y = "Number of Trials"
@@ -341,7 +349,7 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
           `RMSE (CV)` = rmse,
           `± 1 SE` = rmse_std_err,
           `MAE (CV)` = mae,
-          `R² (CV)` = rsq
+          `R² (CV, sq. corr.)` = rsq
         )
       
       reactable(
@@ -376,10 +384,10 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
           ),
           `± 1 SE` = colDef(format = colFormat(digits = 3)),
           `MAE (CV)` = colDef(format = colFormat(digits = 3)),
-          `R² (CV)` = colDef(
+          `R² (CV, sq. corr.)` = colDef(
             format = colFormat(digits = 3),
             style = function(value) {
-              if (value == max(comp_data$`R² (CV)`)) {
+              if (value == max(comp_data$`R² (CV, sq. corr.)`)) {
                 list(fontWeight = 600, color = colors$success)
               }
             }

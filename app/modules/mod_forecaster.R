@@ -224,7 +224,7 @@ mod_forecaster_server <- function(id, trials_data, ref_stats, phase_levels, spon
                 paste0("(", round(pred, 1), " months)")),
             if (capped) div(style = "margin-top: 0.5em; font-size: 0.85em;",
                             icon("exclamation circle"),
-                            " Estimate limited to the 6–180 month range seen in the data; these inputs are outside it."),
+                            " Estimate capped at the app's 6–180 month display limits; these inputs push the model outside them."),
             div(style = "margin-top: 1em; font-size: 0.9em; line-height: 1.5;",
                 tags$strong(paste0(round(band[1]), "–", round(band[4]), " months")),
                 " likely range",
@@ -232,8 +232,9 @@ mod_forecaster_server <- function(id, trials_data, ref_stats, phase_levels, spon
                 span(style = "font-size: 0.85em; opacity: 0.85;",
                      paste0("80% of 2016–2018 test trials finished within this range of their ",
                             "estimate (middle half: ", round(band[2]), "–", round(band[3]),
-                            " months). The range is wide because registry fields explain ",
-                            "little of the variation between trials."))))
+                            " months). A rough guide: the range is pooled over all test trials, ",
+                            "and long recent trials are missing from them, so the upper end is ",
+                            "likely too low."))))
       }
     })
     

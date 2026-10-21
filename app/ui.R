@@ -304,7 +304,8 @@ ui <- semanticPage(
           "A validation-first case study: can public ClinicalTrials.gov registry fields 
            predict how long an oncology trial will run? Only modestly. On a random split 
            the model explains about %d%% of the variation in duration (R² ≈ %.2f); trained 
-           on trials started by %s and tested on %s–%s trials, R² falls to %.2f. The dashboard 
+           on trials started by %s and tested on %s–%s trials, R² falls to %.2f, partly because 
+           that test window is truncated (only finished trials are included). The dashboard 
            shows that result, why it happens, and how the model behaves, for methodology and 
            pattern understanding rather than trial planning.",
           round(100 * model_metrics$random_split_r_squared), model_metrics$random_split_r_squared,
@@ -313,8 +314,8 @@ ui <- semanticPage(
         div(class = "ui small info message",
             tags$strong("Correction (October 2026): "),
             "An earlier version reported R² ≈ 0.84 on a random split. That figure came from a 
-             date-parsing bug and was not real; the numbers above are from the corrected data. 
-             See Methods & Data for details."),
+             date-parsing bug and was not real; duplicate records were also removed. The numbers 
+             above are from the corrected data. See Methods & Data for details."),
         
         h4(style = paste0("color: ", colors$primary_dark), "Data Source"),
         p(HTML(paste0(
@@ -330,7 +331,7 @@ ui <- semanticPage(
         
         h4(style = paste0("color: ", colors$primary_dark), "Model"),
         tags$ul(
-          tags$li(HTML("<strong>Algorithm:</strong> Elastic Net (regularized linear regression). Linear regression, Random Forest and XGBoost cross-validated within one standard error of it, so the simplest interpretable model was kept")),
+          tags$li(HTML(paste0("<strong>Algorithm:</strong> Elastic Net (regularized linear regression). ", selection_note))),
           tags$li(HTML(paste0("<strong>Performance:</strong> R² = ", model_metrics$r_squared, 
                               " on trials started 2016–2018 (time-based test set)"))),
           tags$li(HTML(paste0("<strong>Median Absolute Error:</strong> ", model_metrics$median_abs_error_months, 

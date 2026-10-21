@@ -26,10 +26,14 @@ mod_methods_ui <- function(id) {
       p(
         style = "line-height: 1.7; color: #1A1A2E; margin: 0;",
         "An independent review found that month-only registry dates (for example \"2005-08\") ",
-        "had been read as dates in 2020. That mis-dated 622 trials, dropped about 1,000 others, ",
+        "had been read as dates in 2020. That mis-dated ", date_audit$misdated_in_both, " trials, ",
+        "dropped ", format(date_audit$only_in_new_cohort, big.mark = ","), " others, ",
         "and produced a spurious random-split R² of 0.84 that earlier versions of this dashboard ",
-        "presented as the headline result. Dates are now parsed correctly and every model has been ",
-        "retrained. The validation lesson still holds, at a smaller and honest size: R² of ",
+        "presented as the headline result. A follow-up check found ", date_audit$duplicates_removed,
+        " Phase 2/3 trials counted twice (returned by both phase queries). Dates are now parsed ",
+        "correctly, duplicates removed, and every model retrained (counts: ",
+        "scripts/07_date_parsing_audit.R). The validation lesson still holds, at a smaller and ",
+        "honest size: R² of ",
         tags$strong(sprintf("%.2f", model_metrics$random_split_r_squared)), " on a random split versus ",
         tags$strong(sprintf("%.2f", model_metrics$r_squared)), " on later trials."
       )
@@ -43,22 +47,31 @@ mod_methods_ui <- function(id) {
       h3(
         style = "color: #D32F2F; margin-top: 0;",
         icon("exclamation-triangle"),
-        " Validation Lessons: Same Model, Two Answers"
+        " Validation Lessons: Same Model, Three Answers"
       ),
       
-      p(
-        style = "font-size: 1.1em; line-height: 1.7; color: #1A1A2E;",
-        "Holding the trials, features and model fixed, a random train/test split gives R² ≈ ",
-        sprintf("%.2f", model_metrics$random_split_r_squared),
-        ". Training on trials started by ", model_metrics$train_cutoff, " and testing on ",
-        model_metrics$test_start, "–", model_metrics$test_end, " gives R² ≈ ",
-        sprintf("%.2f", model_metrics$r_squared),
-        ". Registry fields describe some historical pattern but carry almost no prospective signal."
-      ),
+      local({
+        drop_total <- model_metrics$random_split_r_squared - model_metrics$r_squared
+        drop_window <- model_metrics$random_split_r_squared - model_metrics$random_trunc_r_squared
+        share_window <- round(10 * drop_window / drop_total) * 10  # nearest 10%
+        p(
+          style = "font-size: 1.1em; line-height: 1.7; color: #1A1A2E;",
+          "Holding the trials, features and model fixed, a random train/test split gives R² ≈ ",
+          sprintf("%.2f", model_metrics$random_split_r_squared),
+          ". Training on trials started by ", model_metrics$train_cutoff, " and testing on ",
+          model_metrics$test_start, "–", model_metrics$test_end, " gives R² ≈ ",
+          sprintf("%.2f", model_metrics$r_squared),
+          ". Part of that drop is the test window, not the model: only 2016–2018 trials that had ",
+          "finished by the data pull are included. Scoring the random split on trials that fit ",
+          "the same window gives R² ≈ ", sprintf("%.2f", model_metrics$random_trunc_r_squared),
+          ", so roughly ", share_window, "% of the drop comes from the window and the rest from ",
+          "predicting later trials. Either way, registry fields explain little of the variation."
+        )
+      }),
       
       # Comparison boxes
       div(
-        class = "ui two column stackable grid",
+        class = "ui three column stackable grid",
         style = "margin-top: 1.5em;",
         
         # Random validation column
@@ -82,6 +95,31 @@ mod_methods_ui <- function(id) {
               class = "ui label",
               style = "background: #E65100; color: white;",
               "Optimistic for prospective use"
+            )
+          )
+        ),
+
+        # Random split, truncation-matched test window
+        div(
+          class = "column",
+          div(
+            class = "ui segment",
+            style = "background: #FFF8E1;",
+            h4(style = "color: #8D6E00; margin-top: 0;", icon("filter"), " Random Split, Same Window"),
+            div(
+              style = "font-size: 2em; font-weight: bold; color: #8D6E00;",
+              sprintf("R² = %.2f", model_metrics$random_trunc_r_squared)
+            ),
+            p(
+              style = "color: #4A4A68; margin-top: 0.5em;",
+              tags$strong("Check:"), " the random split scored only on test trials no longer than ",
+              model_metrics$test_max_months, " months, the longest time-based test trial. ",
+              "Separates the truncated test window from the effect of time."
+            ),
+            div(
+              class = "ui label",
+              style = "background: #8D6E00; color: white;",
+              "Isolates the window effect"
             )
           )
         ),
@@ -115,9 +153,13 @@ mod_methods_ui <- function(id) {
       p(
         style = "margin-top: 1em; font-size: 0.85em; color: #4A4A68;",
         "R² here is 1 − SSE/SST on log duration (it can be negative when a model does worse than ",
-        "predicting the average). The squared correlation between predicted and actual on the ",
-        "time-based test set is ", sprintf("%.2f", model_metrics$r_squared_cor),
-        ". Random-split figures are the mean of 5 splits (scripts/06_random_vs_time_split.R)."
+        "predicting the average), so it also penalizes a shift in level: time-based test trials ",
+        "ran on average about ", model_metrics$pct_shorter_than_predicted, "% shorter than predicted. ",
+        "The squared correlation, which ignores level and measures linear association, is ",
+        sprintf("%.2f", model_metrics$random_split_r_squared_cor), ", ",
+        sprintf("%.2f", model_metrics$random_trunc_r_squared_cor), " and ",
+        sprintf("%.2f", model_metrics$r_squared_cor), " for the three splits. Random-split figures ",
+        "are the mean of 5 splits (scripts/06_random_vs_time_split.R)."
       ),
       
       # Key takeaway
@@ -313,7 +355,7 @@ mod_methods_ui <- function(id) {
             tags$li(tags$strong("Excluded: "), format(temporal_split_info$excluded_recent_n, big.mark = ","),
                     " trials (started after ", model_metrics$test_end, "; only the shorter ones had finished)"),
             tags$li(tags$strong("CV: "), "10-fold within training data"),
-            tags$li(tags$strong("Selection: "), "One-standard-error rule on CV RMSE; among tied models, the simplest")
+            tags$li(tags$strong("Selection: "), "One-standard-error rule on CV RMSE; among tied models, Elastic Net by stated preference")
           )
         ),
         
@@ -327,9 +369,8 @@ mod_methods_ui <- function(id) {
             tags$li("XGBoost (boosting)")
           ),
           p(style = paste0("font-size: 0.9em; color: ", colors$text_secondary),
-            "All four models were within one standard error of each other on CV RMSE, so the 
-             simplest interpretable one was kept: Elastic Net (penalty ", model_metrics$penalty,
-            ", mixture ", model_metrics$mixture, "). Time-based test R² = ",
+            selection_note, " Fitted: penalty ", model_metrics$penalty,
+            ", mixture ", model_metrics$mixture, ". Time-based test R² = ",
             sprintf("%.2f", model_metrics$r_squared), ". See Validation Lessons above.")
         )
       )
@@ -427,8 +468,9 @@ mod_methods_ui <- function(id) {
            starting ≤", model_metrics$train_cutoff, ", tested on trials starting ",
           model_metrics$test_start, "–", model_metrics$test_end, ". The test window is 
            right-truncated: only trials finished by January 2026 are included, so long 2016–2018 
-           trials are missing. This makes errors in months look smaller than they would be 
-           for a complete cohort; R² is the fairer comparison.")
+           trials are missing. That makes errors in months look smaller than they would be 
+           for a complete cohort and shifts test durations down, which lowers R². The 
+           truncation-matched random split in Validation Lessons separates the two effects.")
       ),
       
       div(
