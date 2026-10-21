@@ -96,11 +96,12 @@ mod_features_ui <- function(id) {
           class = "column",
           div(
             class = "insight-box",
-            div(class = "insight-title", "Sponsor Type Shows Strongest Signal"),
-            p("Non-industry sponsors (NIH, Government, Academic) show the largest coefficients,
-               suggesting these trials tend to run longer than industry-sponsored studies—
-               though this association may reflect different trial designs rather than 
-               operational efficiency.")
+            div(class = "insight-title", "Sponsor Type Shows the Strongest Signal"),
+            p("Compared with industry sponsors, NIH, government/cooperative-group and academic 
+               trials have the largest positive coefficients: they tend to run longer. This may 
+               reflect different designs and endpoints rather than operational efficiency. 
+               Note that sponsor coefficients compare a category with Industry, while numeric 
+               coefficients are per standard deviation, so bar lengths are not strictly comparable.")
           )
         ),
         
@@ -109,9 +110,9 @@ mod_features_ui <- function(id) {
           div(
             class = "insight-box",
             div(class = "insight-title", "Log Transforms Help"),
-            p("Sites and enrollment use log transforms because their relationship with 
-               duration is non-linear. Doubling from 10 to 20 sites has more impact than 
-               doubling from 100 to 200.")
+            p("Sites and enrollment are log-transformed because their effect flattens as they 
+               grow: adding 10 sites to a 10-site trial matters far more than adding 10 to a 
+               100-site trial. On the log scale, each doubling has the same effect.")
           )
         ),
         
@@ -120,9 +121,7 @@ mod_features_ui <- function(id) {
           div(
             class = "insight-box",
             div(class = "insight-title", "Limited Predictive Power"),
-            p("Despite clear associations, these features explain only ~4% of variance in 
-               future trial durations. Protocol complexity, endpoints, and operational 
-               factors not in the registry drive most of the variation.")
+            p(paste0("These features explain about ", round(100 * model_metrics$random_split_r_squared), "% of duration variance on a random split and about ", round(100 * model_metrics$r_squared), "% for later trials. Even the random-split figure is low: protocol complexity, endpoints and operational factors not in the registry drive most of the variation."))
           )
         )
       )
@@ -146,22 +145,8 @@ mod_features_server <- function(id, trials_data, feature_importance) {
       # Prepare data
       plot_data <- plot_data |>
         mutate(
-          feature_label = case_when(
-            Variable == "registration_to_start" ~ "Registration to Start Time",
-            Variable == "log_sites" ~ "Number of Sites (log)",
-            Variable == "log_enrollment" ~ "Enrollment Size (log)",
-            Variable == "log_enrollment_per_site" ~ "Enrollment per Site (log)",
-            Variable == "n_countries" ~ "Number of Countries",
-            Variable == "is_multinational" ~ "Multinational Flag",
-            Variable == "is_multisite" ~ "Multi-site Flag",
-            Variable == "sponsor_simple_Government.Network" ~ "Sponsor: Government/Network",
-            Variable == "sponsor_simple_Academic.Other" ~ "Sponsor: Academic/Other",
-            Variable == "sponsor_simple_NIH" ~ "Sponsor: NIH",
-            Variable == "phase_simple_Phase.3" ~ "Phase 3",
-            Variable == "phase_simple_Phase.2.3" ~ "Phase 2/3",
-            Variable == "phase_simple_Phase.1.2" ~ "Phase 1/2",
-            TRUE ~ gsub("_", " ", Variable)
-          ),
+          feature_label = feature_label(Variable),
+          direction = ifelse(estimate >= 0, "longer", "shorter"),
           feature_label = factor(feature_label, levels = rev(feature_label)),
           pct_of_max = Importance / max(Importance) * 100,
           category = case_when(
@@ -177,7 +162,7 @@ mod_features_server <- function(id, trials_data, feature_importance) {
             fill = category,
             tooltip = paste0(
               "<strong>", feature_label, "</strong><br>",
-              "Coefficient: ", round(Importance, 3), "<br>",
+              "Coefficient: ", sprintf("%+.3f", estimate), " (", direction, " durations)<br>",
               "% of max: ", round(pct_of_max, 1), "%"
             ),
             data_id = Variable
@@ -239,7 +224,7 @@ mod_features_server <- function(id, trials_data, feature_importance) {
           "Sponsor Type"
         ),
         Description = c(
-          "Days from ClinicalTrials.gov registration to first patient enrolled",
+          "Days from first ClinicalTrials.gov registration to study start (negative if registered after start)",
           "Total investigator sites participating (log-transformed)",
           "Actual (final) enrollment as reported at completion (log-transformed)",
           "Average patients per site = enrollment / sites (log-transformed)",
@@ -248,13 +233,15 @@ mod_features_server <- function(id, trials_data, feature_importance) {
           "Industry, Academic/Other, NIH, or Government/Network"
         ),
         `Why It Matters` = c(
-          "Captures operational readiness and startup complexity",
+          "Rough proxy for era and registration practice; small effect in this model",
           "More sites = more coordination but potentially faster enrollment",
           "Larger trials take longer but with diminishing marginal effect",
           "High burden per site can slow enrollment and data collection",
           "International trials add regulatory and logistical complexity",
-          "Later phases typically require more patients and longer follow-up",
-          "Different sponsors have different operational capabilities"
+          paste0("Adjusted for size and sponsor, Phase 3 is predicted ",
+                 ifelse(feature_importance$estimate[feature_importance$term == "phase_simple_Phase.3"] < 0,
+                        "shorter", "longer"), " than Phase 2"),
+          "Largest association: non-industry sponsors run longer"
         ),
         stringsAsFactors = FALSE,
         check.names = FALSE

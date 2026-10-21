@@ -31,6 +31,21 @@ dir_create(here("app", "docs"))
 # Null coalescing operator
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
+# Registry dates come as "YYYY-MM-DD" or month-only "YYYY-MM".
+# lubridate::ymd() silently misreads "2005-08" as 2020-05-08, so month-only
+# dates are parsed explicitly as the first day of that month.
+parse_registry_date <- function(x) {
+  x <- as.character(x)
+  out <- rep(as.Date(NA), length(x))
+  full <- !is.na(x) & grepl("^\\d{4}-\\d{2}-\\d{2}$", x)
+  month_only <- !is.na(x) & grepl("^\\d{4}-\\d{2}$", x)
+  out[full] <- as.Date(x[full], format = "%Y-%m-%d")
+  out[month_only] <- as.Date(paste0(x[month_only], "-01"), format = "%Y-%m-%d")
+  other <- !is.na(x) & !full & !month_only
+  if (any(other)) warning(sum(other), " registry dates in an unexpected format were set to NA")
+  out
+}
+
 # ----------------------------------------------------------------------------
 # API Query Function (Enhanced)
 # ----------------------------------------------------------------------------
@@ -256,6 +271,16 @@ cat("============================================================\n\n")
 # Step 0: Test API Connection
 # ----------------------------------------------------------------------------
 
+# The cached download (January 2026 pull) is reused when present, so the
+# cohort is reproducible; set options(ctf.force_download = TRUE) to re-query.
+cache_extracted <- here("app", "data-raw", "cache", "oncology_trials_extracted.rds")
+use_cache <- file_exists(cache_extracted) && !isTRUE(getOption("ctf.force_download"))
+
+if (use_cache) {
+  cat("Using cached extract:", cache_extracted, "\n")
+  trials_df <- readRDS(cache_extracted)
+} else {
+
 cat("STEP 0: Testing API Connection\n")
 cat("------------------------------------------------------------\n\n")
 
@@ -329,6 +354,8 @@ toc()
 saveRDS(trials_df, here("app", "data-raw", "cache", "oncology_trials_extracted.rds"))
 cat("\n✅ Extracted data saved to: app/data-raw/cache/oncology_trials_extracted.rds\n")
 
+}  # end download (skipped when using the cache)
+
 # ----------------------------------------------------------------------------
 # Step 3: Data Quality Assessment
 # ----------------------------------------------------------------------------
@@ -357,6 +384,12 @@ print(completeness, n = 30)
 # Step 4: Calculate Target Variable (Enrollment Duration)
 # ----------------------------------------------------------------------------
 
+# Phase 2/3 trials are returned by both the Phase 2 and Phase 3 queries;
+# keep one row per trial so none is counted twice.
+n_before_dedup <- nrow(trials_df)
+trials_df <- trials_df |> distinct(nct_id, .keep_all = TRUE)
+cat("Removed", n_before_dedup - nrow(trials_df), "duplicate trial records (same NCT ID)\n")
+
 cat("\n")
 cat("STEP 4: Calculate Enrollment Duration\n")
 cat("------------------------------------------------------------\n\n")
@@ -364,9 +397,9 @@ cat("------------------------------------------------------------\n\n")
 trials_clean <- trials_df |>
   # Parse dates
   mutate(
-    start_date_parsed = ymd(start_date),
-    completion_date_parsed = ymd(completion_date),
-    primary_completion_parsed = ymd(primary_completion_date)
+    start_date_parsed = parse_registry_date(start_date),
+    completion_date_parsed = parse_registry_date(completion_date),
+    primary_completion_parsed = parse_registry_date(primary_completion_date)
   ) |>
   # Calculate duration in months
   mutate(
@@ -543,7 +576,7 @@ cat("   app/docs/03_enrollment_vs_duration.png\n")
 cat("   app/docs/04_sites_vs_duration.png\n")
 
 cat("\n📊 Dataset Summary:\n")
-cat("   Total trials downloaded:", length(all_trials), "\n")
+cat("   Total trials downloaded:", nrow(trials_df), "\n")
 cat("   Trials ready for modeling:", nrow(trials_clean), "\n")
 cat("   Features available:", ncol(trials_clean), "\n")
 

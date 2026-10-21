@@ -29,9 +29,10 @@ mod_executive_brief_ui <- function(id) {
         class = "column",
         div(
           class = "kpi-card",
-          div(class = "kpi-value", paste0(model_metrics$r_squared * 100, "%")),
-          div(class = "kpi-label", "Variance Explained (R²)"),
-          div(class = "kpi-context", "Test set performance")
+          div(class = "kpi-value", sprintf("%.2f", model_metrics$r_squared)),
+          div(class = "kpi-label", "R² on Later Trials"),
+          div(class = "kpi-context",
+              sprintf("vs %.2f on a random split", model_metrics$random_split_r_squared))
         )
       ),
       
@@ -41,8 +42,8 @@ mod_executive_brief_ui <- function(id) {
         div(
           class = "kpi-card",
           div(class = "kpi-value", paste0(model_metrics$median_abs_error_months, " mo")),
-          div(class = "kpi-label", "Median Prediction Error"),
-          div(class = "kpi-context", "50% of predictions within this range")
+          div(class = "kpi-label", "Median Absolute Error"),
+          div(class = "kpi-context", "Half of test predictions were off by less than this")
         )
       ),
       
@@ -64,7 +65,7 @@ mod_executive_brief_ui <- function(id) {
         div(
           class = "kpi-card",
           div(class = "kpi-value", uiOutput(ns("avg_duration"), inline = TRUE)),
-          div(class = "kpi-label", "Average Trial Duration"),
+          div(class = "kpi-label", "Median Trial Duration"),
           div(class = "kpi-context",
               paste0("Trials started ", ref_stats$baseline_cutoff, " or earlier"))
         )
@@ -86,29 +87,36 @@ mod_executive_brief_ui <- function(id) {
           # Finding 1
           div(
             class = "insight-box",
-            div(class = "insight-title", "Sponsor Type Shows Strongest Association"),
-            p("Non-industry sponsors (NIH, Government, Academic) are associated with longer 
-               trial durations. This may reflect different trial designs, funding cycles, 
-               or operational approaches—though causality cannot be established from this 
-               observational data.")
+            div(class = "insight-title", "Sponsor Type Shows the Strongest Association"),
+            p(paste0("Among modeled trials, median duration is ", sponsor_medians[["Industry"]], " months for industry sponsors versus ", sponsor_medians[["Academic/Other"]], " for academic, ", sponsor_medians[["NIH"]], " for NIH and ", sponsor_medians[["Government/Network"]], " for government or cooperative-group trials. This may reflect different designs, endpoints or funding cycles; causality cannot be established from observational data."))
           ),
           
           # Finding 2
           div(
             class = "insight-box",
-            div(class = "insight-title", "Trial Size and Scope Play a Smaller Role"),
-            p("Larger enrollment and more countries are associated with somewhat longer 
-               trials, in the expected direction. Their coefficients are small next to 
-               sponsor type, so they add little predictive signal on their own.")
+            div(class = "insight-title", "Phase Looks Different Once Size Is Accounted For"),
+            local({
+              est <- setNames(feature_importance$estimate, feature_importance$term)
+              # Phase dummies are 0/1 (created after normalization), so exp(coef) - 1
+              # is the predicted % difference vs Phase 2 at the same size and sponsor
+              dir <- function(term) paste0("about ", abs(round(100 * (exp(est[[term]]) - 1))), "% ",
+                                           if (isTRUE(est[[term]] < 0)) "shorter" else "longer")
+              p(paste0(
+                "Unadjusted, median duration is ", phase_medians[["Phase 2"]], " months for Phase 2 and ",
+                phase_medians[["Phase 3"]], " for Phase 3 trials. Larger enrollment is associated with ",
+if (isTRUE(est[["log_enrollment"]] < 0)) "shorter" else "longer", " trials, and once size and sponsor are in the model, Phase 3 and ",
+                "Phase 2/3 trials are predicted ", dir("phase_simple_Phase.3"), " and ",
+                dir("phase_simple_Phase.2.3"), ", respectively, than Phase 2 trials of the same size. ",
+                "Associations only; phase and size are entangled in observational data."
+              ))
+            })
           ),
           
           # Finding 3
           div(
             class = "insight-box",
             div(class = "insight-title", "Limited Forecasting Power"),
-            p("Time-based validation reveals that registry features explain only ~4% of 
-               variance in future trial durations. Protocol complexity, endpoint strategy, 
-               and operational factors not captured in public data drive most variation.")
+            p(paste0("Registry features explain about ", round(100 * model_metrics$random_split_r_squared), "% of duration variance on a random split, but about ", round(100 * model_metrics$r_squared), "% for trials started after the training period (about ", round(100 * model_metrics$random_trunc_r_squared), "% on a random split scored on the same truncated test window, so part of the drop is the window itself). Protocol complexity, endpoint strategy and operational factors not captured in public data drive most of the variation."))
           )
         )
       ),
@@ -128,11 +136,11 @@ mod_executive_brief_ui <- function(id) {
             tags$tbody(
               tags$tr(
                 tags$td(tags$strong("Algorithm")),
-                tags$td("Elastic Net (regularized linear)")
+                tags$td(paste0("Elastic Net (mixture ", model_metrics$mixture, ")"))
               ),
               tags$tr(
                 tags$td(tags$strong("Features")),
-                tags$td("6 predictors")
+                tags$td(paste0("6 inputs (", nrow(feature_importance), " model terms)"))
               ),
               tags$tr(
                 tags$td(tags$strong("Training Method")),
@@ -140,12 +148,13 @@ mod_executive_brief_ui <- function(id) {
               ),
               tags$tr(
                 tags$td(tags$strong("Validation")),
-                tags$td("Time-based (train ≤2015, test 2016-2018)")
+                tags$td(paste0("Time-based (train ≤", model_metrics$train_cutoff, ", test ",
+                               model_metrics$test_start, "–", model_metrics$test_end, ")"))
               ),
               tags$tr(
                 tags$td(tags$strong("Test Performance")),
-                tags$td(paste0("R²=", model_metrics$r_squared, 
-                               ", RMSE=", round(model_metrics$rmse, 3)))
+                tags$td(sprintf("R² = %.2f, RMSE = %.3f (log scale)",
+                                model_metrics$r_squared, model_metrics$rmse))
               )
             )
           ),
@@ -175,8 +184,11 @@ mod_executive_brief_ui <- function(id) {
           class = "column",
           h4(style = paste0("color: ", colors$accent), icon("check circle outline"), " Validation Practice"),
           p("A worked example of why validation must match intended use: the same model 
-             looks strong under a random split and weak under a time-based one. The gap, 
-             not the model, is the finding.")
+             scores R² ", sprintf("%.2f", model_metrics$random_split_r_squared),
+            " on a random split and ", sprintf("%.2f", model_metrics$r_squared),
+            " on later trials, and a truncation-matched check shows how much of that gap ",
+            "comes from the test window rather than time. It also shows why independent review matters: an earlier 
+             version's R² of 0.84 came from a date-parsing bug (see Methods & Data).")
         ),
         
         div(
@@ -190,9 +202,10 @@ mod_executive_brief_ui <- function(id) {
         div(
           class = "column",
           h4(style = paste0("color: ", colors$accent), icon("exclamation triangle"), " Uncertainty Awareness"),
-          p("Show how wide honest ranges are: 80% of recent test trials fell roughly 
-             between one-third and 1.2 times their model estimate. A planned timeline 
-             cannot be meaningfully confirmed or rejected with a band that wide.")
+          p("Show how wide honest ranges are: 80% of recent test trials fell between ",
+            sprintf("%.2f", exp(ref_stats$resid_q[[1]])), " and ",
+            sprintf("%.2f", exp(ref_stats$resid_q[[4]])), " times their model estimate. 
+             A planned timeline cannot be meaningfully confirmed or rejected with a band that wide.")
         )
       )
     ),
@@ -215,8 +228,7 @@ mod_executive_brief_server <- function(id, trials_data, model_metrics, ref_stats
     
     # Average duration KPI
     output$avg_duration <- renderText({
-      avg_months <- round(ref_stats$duration_mean, 1)
-      paste0(avg_months, " mo")
+      paste0(round(ref_stats$duration_median, 1), " mo")
     })
     
     # Mini feature importance chart (top 5)
@@ -233,18 +245,7 @@ mod_executive_brief_server <- function(id, trials_data, model_metrics, ref_stats
       top_features <- importance_data |>
         head(5) |>
         mutate(
-          feature_label = case_when(
-            Variable == "registration_to_start" ~ "Reg-to-Start Time",
-            Variable == "log_sites" ~ "Number of Sites",
-            Variable == "log_enrollment" ~ "Enrollment Size",
-            Variable == "log_enrollment_per_site" ~ "Enrollment/Site",
-            Variable == "n_countries" ~ "Countries",
-            # Dummy-variable names use "." for "/" and spaces; restore readable labels
-            grepl("sponsor_simple", Variable) ~ gsub("\\.", "/",
-                                                     gsub("sponsor_simple_", "Sponsor: ", Variable)),
-            grepl("phase_simple", Variable) ~ gsub("\\.", " ", gsub("phase_simple_", "", Variable)),
-            TRUE ~ gsub("_", " ", Variable)
-          ),
+          feature_label = feature_label(Variable),
           feature_label = factor(feature_label, levels = rev(feature_label))
         )
       
@@ -252,7 +253,7 @@ mod_executive_brief_server <- function(id, trials_data, model_metrics, ref_stats
       p <- ggplot(top_features, aes(x = Importance, y = feature_label)) +
         geom_col_interactive(
           aes(
-            tooltip = paste0(feature_label, "\nCoefficient magnitude: ", round(Importance, 2)),
+            tooltip = paste0(feature_label, "\nCoefficient: ", sprintf("%+.2f", estimate)),
             data_id = Variable
           ),
           fill = colors$primary,

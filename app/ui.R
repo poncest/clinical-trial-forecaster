@@ -225,7 +225,7 @@ ui <- semanticPage(
       ),
       div(
         class = "sidebar-subtitle",
-        "Duration Prediction Tool"
+        "A Validation Case Study"
       ),
       
       # Navigation Menu
@@ -300,11 +300,22 @@ ui <- semanticPage(
         style = "line-height: 1.7;",
         
         h4(style = paste0("color: ", colors$primary_dark, "; margin-top: 0;"), "Purpose"),
-        p("A validation-first case study: can public ClinicalTrials.gov registry fields 
-           predict how long an oncology trial will run? A model that looked strong under 
-           random validation (R² ≈ 0.84) explains almost nothing under time-based validation 
-           (R² ≈ 0.04). The dashboard shows that result, why it happens, and how the model 
-           behaves, for methodology and pattern understanding rather than trial planning."),
+        p(sprintf(
+          "A validation-first case study: can public ClinicalTrials.gov registry fields 
+           predict how long an oncology trial will run? Only modestly. On a random split 
+           the model explains about %d%% of the variation in duration (R² ≈ %.2f); trained 
+           on trials started by %s and tested on %s–%s trials, R² falls to %.2f, partly because 
+           that test window is truncated (only finished trials are included). The dashboard 
+           shows that result, why it happens, and how the model behaves, for methodology and 
+           pattern understanding rather than trial planning.",
+          round(100 * model_metrics$random_split_r_squared), model_metrics$random_split_r_squared,
+          model_metrics$train_cutoff, model_metrics$test_start, model_metrics$test_end,
+          model_metrics$r_squared)),
+        div(class = "ui small info message",
+            tags$strong("Correction (October 2026): "),
+            "An earlier version reported R² ≈ 0.84 on a random split. That figure came from a 
+             date-parsing bug and was not real; duplicate records were also removed. The numbers 
+             above are from the corrected data. See Methods & Data for details."),
         
         h4(style = paste0("color: ", colors$primary_dark), "Data Source"),
         p(HTML(paste0(
@@ -320,11 +331,11 @@ ui <- semanticPage(
         
         h4(style = paste0("color: ", colors$primary_dark), "Model"),
         tags$ul(
-          tags$li(HTML("<strong>Algorithm:</strong> Elastic Net (regularized linear regression), selected by cross-validation over linear regression, Random Forest and XGBoost")),
+          tags$li(HTML(paste0("<strong>Algorithm:</strong> Elastic Net (regularized linear regression). ", selection_note))),
           tags$li(HTML(paste0("<strong>Performance:</strong> R² = ", model_metrics$r_squared, 
                               " on trials started 2016–2018 (time-based test set)"))),
-          tags$li(HTML(paste0("<strong>Median Error:</strong> ", model_metrics$median_abs_error_months, 
-                              " months")))
+          tags$li(HTML(paste0("<strong>Median Absolute Error:</strong> ", model_metrics$median_abs_error_months, 
+                              " months on the same test set")))
         ),
         
         h4(style = paste0("color: ", colors$primary_dark), "Disclaimer"),
@@ -340,6 +351,12 @@ ui <- semanticPage(
         
         div(
           style = "margin-top: 1.5em; display: flex; gap: 1em;",
+          tags$a(
+            href = "https://stevenponce.netlify.app/projects/standalone_visualizations/sa_2026-01-19.html",
+            target = "_blank",
+            class = "ui button",
+            icon("file alternate outline"), " Read the Case Study"
+          ),
           tags$a(
             href = "https://github.com/poncest/clinical-trial-forecaster",
             target = "_blank",
