@@ -1,5 +1,5 @@
 # ============================================================================
-# 02_data_exploration.R
+# 02_download_and_clean.R
 # Clinical Trial Forecaster - Data Exploration & Extraction
 # ============================================================================
 # Purpose: Query oncology trials, extract fields, assess data quality

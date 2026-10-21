@@ -313,11 +313,16 @@ mod_methods_ui <- function(id) {
           
           h4("Data Quality Notes"),
           p(style = paste0("font-size: 0.9em; color: ", colors$text_secondary),
-            "The January 2026 pull was capped at 2,000 trials per phase query (Phase 2 and 
-             Phase 3, in the order the API returned them), so the cohort is a large sample of 
-             completed oncology trials, not all of them. Month-only dates are treated as the 
-             first of the month. Enrollment, sites and countries are final reported values, 
-             not what was planned at study start.")
+            paste0("The January 2026 pull was capped at 2,000 trials per phase query (Phase 2 and ",
+             "Phase 3, in the order the API returned them), so the cohort is a large sample of ",
+             "completed oncology trials, not all of them. The return order shows no time trend ",
+             "(correlation of position with start year ",
+             paste(sprintf("%.2f", sampling_check$cor_position_start_year), collapse = " and "),
+             "; median start year ", sampling_check$median_start_year_q1[1],
+             " in the first and last quarter of each pull; trial IDs span the full range), so the cap ",
+             "does not appear to cut by date (scripts/09_sampling_order_check.R). Month-only dates are ",
+             "treated as the first of the month. Enrollment, sites and countries are final reported ",
+             "values, not what was planned at study start."))
         )
       )
     ),
@@ -457,11 +462,17 @@ mod_methods_ui <- function(id) {
         class = "insight-box",
         style = paste0("border-left-color: ", colors$warning, ";"),
         h4(style = "margin-top: 0;", "Inputs Are Known Only in Hindsight"),
-        p("Enrollment, number of sites and number of countries are the final values reported 
-           at completion, not what was planned. Registration-to-start lag is the gap between 
-           first registration and study start; it is negative for the many trials registered 
-           after they started. A forecast made before a trial starts would use planned values, 
-           which can differ substantially.")
+        p(paste0("Enrollment, number of sites and number of countries are the final values reported ",
+           "at completion, not what was planned. Registration-to-start lag is the gap between ",
+           "first registration and study start; it is negative for the many trials registered ",
+           "after they started. Refitting with only what is known at study start (phase, sponsor, ",
+           "registration-to-start lag) drops R² from ",
+           sprintf("%.2f", prestart_r2("all (published model)", "random")), " to ",
+           sprintf("%.2f", prestart_r2("pre-start only", "random")), " on a random split and from ",
+           sprintf("%.2f", prestart_r2("all (published model)", "time-based")), " to ",
+           sprintf("%.2f", prestart_r2("pre-start only", "time-based")),
+           " on later trials (worse than predicting the average). Most of the signal comes from ",
+           "inputs known only in hindsight (scripts/08_prestart_features.R)."))
       ),
       
       div(

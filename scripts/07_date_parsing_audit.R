@@ -18,7 +18,7 @@ library(lubridate)
 trials_raw <- readRDS(here("app", "data-raw", "cache", "oncology_trials_extracted.rds"))
 trials_df <- trials_raw |> distinct(nct_id, .keep_all = TRUE)  # as in script 02
 
-# Same parser as scripts/02_data_exploration.R
+# Same parser as scripts/02_download_and_clean.R
 parse_registry_date <- function(x) {
   x <- as.character(x)
   out <- rep(as.Date(NA), length(x))
