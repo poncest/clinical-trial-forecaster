@@ -279,7 +279,7 @@ ui <- semanticPage(
         # Data info
         div(
           style = "font-size: 0.8em; opacity: 0.7; text-align: center;",
-          paste0(format(app_info$n_trials, big.mark = ","), " oncology trials"),
+          paste0(format(app_info$n_train + app_info$n_test, big.mark = ","), " oncology trials modeled"),
           br(),
           "ClinicalTrials.gov",
           br(),
@@ -300,25 +300,29 @@ ui <- semanticPage(
         style = "line-height: 1.7;",
         
         h4(style = paste0("color: ", colors$primary_dark, "; margin-top: 0;"), "Purpose"),
-        p("This dashboard demonstrates predictive analytics capabilities for clinical trial 
-           planning. It uses machine learning to forecast trial duration based on trial 
-           characteristics, providing decision support for portfolio planning and resource 
-           allocation."),
+        p("A validation-first case study: can public ClinicalTrials.gov registry fields 
+           predict how long an oncology trial will run? A model that looked strong under 
+           random validation (R² ≈ 0.84) explains almost nothing under time-based validation 
+           (R² ≈ 0.04). The dashboard shows that result, why it happens, and how the model 
+           behaves, for methodology and pattern understanding rather than trial planning."),
         
         h4(style = paste0("color: ", colors$primary_dark), "Data Source"),
         p(HTML(paste0(
-          "Analysis based on <strong>", format(app_info$n_trials, big.mark = ","), 
-          " completed oncology trials</strong> from ",
+          "<strong>", format(app_info$n_trials, big.mark = ","), 
+          " completed oncology trials</strong> pulled from ",
           "<a href='https://clinicaltrials.gov' target='_blank'>ClinicalTrials.gov</a>. ",
           "Includes Phase 1/2, Phase 2, Phase 2/3, and Phase 3 interventional trials with complete ",
-          "duration data."
+          "duration data. The model uses the ", format(app_info$n_train + app_info$n_test, big.mark = ","),
+          " that started by 2018 (", format(app_info$n_train, big.mark = ","), " for training, ",
+          format(app_info$n_test, big.mark = ","), " for testing); later trials are excluded because ",
+          "only the shortest had finished by the data pull."
         ))),
         
         h4(style = paste0("color: ", colors$primary_dark), "Model"),
         tags$ul(
-          tags$li(HTML("<strong>Algorithm:</strong> Random Forest (500 trees)")),
+          tags$li(HTML("<strong>Algorithm:</strong> Elastic Net (regularized linear regression), selected by cross-validation over linear regression, Random Forest and XGBoost")),
           tags$li(HTML(paste0("<strong>Performance:</strong> R² = ", model_metrics$r_squared, 
-                              " on held-out test data"))),
+                              " on trials started 2016–2018 (time-based test set)"))),
           tags$li(HTML(paste0("<strong>Median Error:</strong> ", model_metrics$median_abs_error_months, 
                               " months")))
         ),
