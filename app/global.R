@@ -167,6 +167,11 @@ sponsor_levels <- levels(trials_data$sponsor_simple)
 split_comparison <- read.csv("models/split_comparison.csv")
 .rand <- split_comparison[split_comparison$split == "random (mean of 5)", ]
 .rtrunc <- split_comparison[split_comparison$split == "random, truncation-matched (mean of 5)", ]
+# Censoring-aware check on the full all-status pull (scripts/11); optional
+survival_km <- if (file.exists("models/survival_km_summary.csv")) read.csv("models/survival_km_summary.csv") else NULL
+survival_curves <- if (file.exists("models/survival_km_curves.csv")) read.csv("models/survival_km_curves.csv") else NULL
+survival_val <- if (file.exists("models/survival_validation.csv")) read.csv("models/survival_validation.csv") else NULL
+
 # Pre-start-only refit (scripts/08) and API return-order check (scripts/09)
 prestart <- read.csv("models/prestart_comparison.csv")
 prestart_r2 <- function(features, split) prestart$rsq_trad[prestart$features == features & prestart$split == split]

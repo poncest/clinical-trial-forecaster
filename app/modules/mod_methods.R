@@ -190,7 +190,7 @@ mod_methods_ui <- function(id) {
         " Why Trial Duration Forecasting Is Hard"
       ),
       
-      h4(style = "color: #4A4A68;", "1. Later Trials Look Shorter, Partly by Construction"),
+      h4(style = "color: #4A4A68;", "1. Later Trials Only Look Shorter"),
       p(
         "Median duration is ", model_metrics$train_median_months, " months for trials started by ",
         model_metrics$train_cutoff, " and ", model_metrics$test_median_months, " months for trials started ",
@@ -202,15 +202,41 @@ mod_methods_ui <- function(id) {
         " months, the median is ", model_metrics$train_capped_median_months, " months."
       ),
       
-      p(style = "color: #4A4A68;", "Possible contributors to any real change (hypotheses, not tested here):"),
-      tags$ul(
-        style = "color: #4A4A68;",
-        tags$li("Adaptive trial designs"),
-        tags$li("Biomarker-selected populations"),
-        tags$li("Regulatory acceptance of surrogate endpoints"),
-        tags$li("Improved site networks and startup tooling")
-      ),
       
+      if (!is.null(survival_km)) local({
+        k <- setNames(split(survival_km, survival_km$era), c("early", "late"))
+        v <- setNames(split(survival_val, seq_len(nrow(survival_val))), c("aft", "naive"))
+        div(
+          style = "margin-top: 1em; padding: 1em; background: #F1F8E9; border-radius: 4px;",
+          h5(style = "margin-top: 0; color: #33691E;", icon("check"), " Censoring-aware check (October 2026)"),
+          p(style = "margin-bottom: 0.5em;", paste0(
+            "A fresh pull of every Phase 2/3 cancer treatment trial started 1990-2018, of any status, ",
+            "treats unfinished trials as censored instead of dropping them (",
+            format(sum(survival_km$n), big.mark = ","), " trials analyzed after the exclusions below). Counting the trials still running, median duration is ",
+            round(k$early$km_median), " months for 1990-2015 starts and ", round(k$late$km_median),
+            " months for 2016-2018 starts (completed trials only: ", round(k$early$completed_only_median),
+            " and ", round(k$late$completed_only_median), "). Later trials are not shorter; the apparent ",
+            "shortening is the cut-off. With pre-start features, a Weibull survival model trained on ",
+            "1990-2015 starts predicts a median of ", round(v$aft$median_predicted_months),
+            " months for 2016-2018 starts (actual ", round(v$aft$test_km_median_months), "), while the same ",
+            "features fitted to completed trials only predict ", round(v$naive$median_predicted_months),
+            ". Ranking ability stays weak for both (concordance ", sprintf("%.2f", v$aft$test_concordance),
+            " and ", sprintf("%.2f", v$naive$test_concordance), "): handling censoring fixes the bias, ",
+            "not the weak signal."
+          )),
+          girafeOutput(NS(id, "km_chart"), height = "320px"),
+          p(style = "font-size: 0.8em; color: #4A4A68; margin: 0;", paste0(
+            "Excluded: ", format(survival_km$n_excluded_unknown_status[1], big.mark = ","),
+            " trials with unknown status (dates not verified for 2+ years), ",
+            survival_km$n_excluded_never_started[1], " withdrawn or not started, ",
+            format(survival_km$n_excluded_no_end_date[1], big.mark = ","),
+            " finished without an end date. Terminated trials are censored at their stop date. ",
+            "Pulled ", survival_km$pull_date[1], "; scripts/10_download_all_statuses.R and ",
+            "scripts/11_survival_model.R."
+          ))
+        )
+      }),
+
       h4(style = "color: #4A4A68; margin-top: 1.5em;", "2. Registry Data Lacks Key Predictive Signals"),
       p("ClinicalTrials.gov captures basic trial characteristics, but the true drivers ",
         "of trial duration are not consistently available:"),
@@ -605,6 +631,32 @@ mod_methods_ui <- function(id) {
 
 mod_methods_server <- function(id, trials_data, app_info) {
   moduleServer(id, function(input, output, session) {
+
+    # Kaplan-Meier curves by start era (censoring-aware check)
+    output$km_chart <- renderGirafe({
+      req(survival_curves)
+      # Per-point tooltips would split the line into one group per point, so the
+      # line is drawn plainly and yearly points carry the tooltips
+      yearly <- survival_curves[survival_curves$month %% 12 == 0, ]
+      p <- ggplot(survival_curves, aes(month, still_running, color = era)) +
+        geom_step(aes(group = era), linewidth = 1) +
+        geom_point_interactive(data = yearly, size = 1.6,
+                               aes(tooltip = paste0(era, "\nMonth ", month, ": ",
+                                                    round(100 * still_running), "% not yet completed"),
+                                   data_id = paste(era, month))) +
+        geom_hline(yintercept = 0.5, linetype = "dashed", color = colors$text_muted) +
+        scale_y_continuous(labels = scales::percent_format(), limits = c(0, 1)) +
+        scale_x_continuous(breaks = seq(0, 180, 24)) +
+        scale_color_manual(values = c(colors$primary, colors$warning), name = NULL) +
+        labs(x = "Months since study start", y = "Not yet completed",
+             caption = "Kaplan-Meier estimate; dashed line = median") +
+        theme_minimal(base_size = 11) +
+        theme(legend.position = "top", panel.grid.minor = element_blank())
+      girafe(ggobj = p, width_svg = 7, height_svg = 3.6,
+             options = list(opts_sizing(rescale = TRUE),
+                            opts_tooltip(css = "background:white;padding:6px;border-radius:4px;")))
+    })
+    outputOptions(output, "km_chart", suspendWhenHidden = FALSE)
     
     # Feature definitions table
     output$feature_definitions <- renderReactable({

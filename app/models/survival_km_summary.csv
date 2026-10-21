@@ -1,0 +1,3 @@
+"era","n","n_completed","n_censored","n_still_running","completed_only_median","km_median","km_median_lcl","km_median_ucl","n_excluded_unknown_status","n_excluded_never_started","n_excluded_no_end_date","pull_date"
+"Started 1990-2015",16676,12916,3760,554,60.8,68,67.5,69,3677,887,1123,"2026-10-21"
+"Started 2016-2018",3886,2289,1597,781,55.6,73.2,71.8,75.6,3677,887,1123,"2026-10-21"
