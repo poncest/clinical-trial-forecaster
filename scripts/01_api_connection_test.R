@@ -1,5 +1,5 @@
 # ============================================================================
-# 01_data_acquisition.R
+# 01_api_connection_test.R
 # Clinical Trial Forecaster - Data Acquisition from ClinicalTrials.gov
 # ============================================================================
 # Purpose: Download and explore clinical trial data from ClinicalTrials.gov
@@ -275,11 +275,11 @@ cat("
 
 4. DOCUMENT: Create docs/data_exploration_notes.md with findings
 
-5. NEXT SCRIPT: Build 02_data_exploration.R for deeper EDA
+5. NEXT SCRIPT: Run 02_download_and_clean.R to download and clean the cohort
 ")
 
 cat("\n============================================================\n")
-cat("✅ 01_data_acquisition.R complete\n
+cat("✅ 01_api_connection_test.R complete\n
 ")
 cat("   sample_data object is available in your environment\n")
 cat("============================================================\n")

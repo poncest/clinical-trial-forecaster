@@ -167,6 +167,10 @@ sponsor_levels <- levels(trials_data$sponsor_simple)
 split_comparison <- read.csv("models/split_comparison.csv")
 .rand <- split_comparison[split_comparison$split == "random (mean of 5)", ]
 .rtrunc <- split_comparison[split_comparison$split == "random, truncation-matched (mean of 5)", ]
+# Pre-start-only refit (scripts/08) and API return-order check (scripts/09)
+prestart <- read.csv("models/prestart_comparison.csv")
+prestart_r2 <- function(features, split) prestart$rsq_trad[prestart$features == features & prestart$split == split]
+sampling_check <- read.csv("models/sampling_order_check.csv")
 # Counts behind the October 2026 correction note (scripts/07_date_parsing_audit.R)
 date_audit <- read.csv("models/date_parsing_audit.csv")
 .spec <- workflows::extract_spec_parsnip(final_workflow)

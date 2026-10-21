@@ -94,22 +94,16 @@ mod_executive_brief_ui <- function(id) {
           # Finding 2
           div(
             class = "insight-box",
-            div(class = "insight-title", "Phase Looks Different Once Size Is Accounted For"),
-            local({
-              est <- setNames(feature_importance$estimate, feature_importance$term)
-              # Phase dummies are 0/1 (created after normalization), so exp(coef) - 1
-              # is the predicted % difference vs Phase 2 at the same size and sponsor
-              dir <- function(term) paste0("about ", abs(round(100 * (exp(est[[term]]) - 1))), "% ",
-                                           if (isTRUE(est[[term]] < 0)) "shorter" else "longer")
-              p(paste0(
-                "Unadjusted, median duration is ", phase_medians[["Phase 2"]], " months for Phase 2 and ",
-                phase_medians[["Phase 3"]], " for Phase 3 trials. Larger enrollment is associated with ",
-if (isTRUE(est[["log_enrollment"]] < 0)) "shorter" else "longer", " trials, and once size and sponsor are in the model, Phase 3 and ",
-                "Phase 2/3 trials are predicted ", dir("phase_simple_Phase.3"), " and ",
-                dir("phase_simple_Phase.2.3"), ", respectively, than Phase 2 trials of the same size. ",
-                "Associations only; phase and size are entangled in observational data."
-              ))
-            })
+            div(class = "insight-title", "Most of the Signal Is Known Only in Hindsight"),
+            p(paste0(
+              "Inputs known only once a trial is under way (final enrollment, sites, countries) carry ",
+              "most of the signal. With only what is known at study start (phase, sponsor, ",
+              "registration-to-start lag), R² falls from ",
+              sprintf("%.2f", prestart_r2("all (published model)", "random")), " to ",
+              sprintf("%.2f", prestart_r2("pre-start only", "random")),
+              " on a random split, and to ", sprintf("%.2f", prestart_r2("pre-start only", "time-based")),
+              " on later trials (worse than predicting the average)."
+            ))
           ),
           
           # Finding 3

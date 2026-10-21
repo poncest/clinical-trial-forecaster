@@ -148,7 +148,7 @@ All four are within one standard error of the best on RMSE, so they are effectiv
 -   Registry fields are self-reported and updated over time
 -   Historical snapshots are not available in this build
 -   Oncology cohort defined via keyword-based registry fields (imperfect)
--   The January 2026 pull was capped at 2,000 trials per phase query (Phase 2 and Phase 3, in API order), so the cohort is a large sample of completed oncology trials, not all of them
+-   The January 2026 pull was capped at 2,000 trials per phase query (Phase 2 and Phase 3, in API order), so the cohort is a large sample of completed oncology trials, not all of them The API's return order shows no time trend within either pull (correlation of position with start year 0.04 and −0.03; median start year 2009 in the first and last quarter of each), so the cap does not appear to cut by date (`scripts/09_sampling_order_check.R`). The full registry population was not re-counted.
 
 ------------------------------------------------------------------------
 
@@ -166,7 +166,7 @@ All four are within one standard error of the best on RMSE, so they are effectiv
 
 -   Oncology cohort defined via keyword-based registry fields (imperfect). About 8% of modeled trials (203 of 2,457) list no cancer term in their conditions field. Refitting without them changes test R² from 0.030 to 0.018 and median absolute error from 15.2 to 14.9 months; conclusions are unchanged (`scripts/05_sensitivity_oncology_filter.R`).
 -   Registry fields are self-reported and updated over time
--   Inputs (actual enrollment, sites, countries) are final values, known only once a trial is under way or finished
+-   Inputs (actual enrollment, sites, countries) are final values, known only once a trial is under way or finished. With only what is known at study start (phase, sponsor, registration-to-start lag), R² falls from 0.24 to 0.10 on a random split and from 0.03 to −0.07 on later trials (`scripts/08_prestart_features.R`): most of the signal comes from hindsight inputs
 -   Limited prospective predictive power (time-based R² ≈ 0.03)
 -   Each Phase 2/3 trial is counted once; the API pull was split by phase, and duplicates across queries are removed
 -   Survivorship and right-truncation bias (completed trials only; long recent trials are missing)
@@ -195,7 +195,9 @@ clinical-trial-forecaster/
 │   │   ├── test_predictions.csv
 │   │   ├── split_comparison.csv            # random vs time-based split (script 06)
 │   │   ├── sensitivity_oncology_filter.csv # cohort sensitivity check (script 05)
-│   │   └── date_parsing_audit.csv          # counts behind the correction note (script 07)
+│   │   ├── date_parsing_audit.csv          # counts behind the correction note (script 07)
+│   │   ├── prestart_comparison.csv         # pre-start-only features (script 08)
+│   │   └── sampling_order_check.csv        # API return-order check (script 09)
 │   ├── data-raw/
 │   │   ├── modeling/            # Feature table read by the app
 │   │   └── cache/               # Jan 2026 ClinicalTrials.gov snapshot (not deployed)
@@ -204,13 +206,16 @@ clinical-trial-forecaster/
 │       └── styles.css
 ├── scripts/                     # Data pipeline
 │   ├── 00_setup.R
-│   ├── 01_data_acquisition.R
-│   ├── 02_data_exploration.R
+│   ├── run_all.R                # rebuilds every app artifact (02-09)
+│   ├── 01_api_connection_test.R
+│   ├── 02_download_and_clean.R
 │   ├── 03_feature_engineering.R
 │   ├── 04_modeling.R
 │   ├── 05_sensitivity_oncology_filter.R
 │   ├── 06_random_vs_time_split.R
-│   └── 07_date_parsing_audit.R
+│   ├── 07_date_parsing_audit.R
+│   ├── 08_prestart_features.R
+│   └── 09_sampling_order_check.R
 └── screenshots/
 ```
 
@@ -243,7 +248,7 @@ It does not constitute clinical, operational, or planning advice. All parameters
 
 ## Contact
 
-**Steven Ponce** Data Analyst \| R Shiny Developer \| Business Intelligence Specialist
+**Steven Ponce** Senior Manager, Clinical Analytics & Centralized Monitoring \| R & Shiny
 
 🔗 **Portfolio Website**: [stevenponce.netlify.app](https://stevenponce.netlify.app/projects.html) 🐙 **GitHub**: [\@poncest](https://github.com/poncest) 💼 **LinkedIn**: [stevenponce](https://www.linkedin.com/in/stevenponce/) 🦋 **Bluesky**: [\@sponce1](https://bsky.app/profile/sponce1.bsky.social)
 
