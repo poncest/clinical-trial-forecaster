@@ -10,10 +10,7 @@
 #          evaluation on the 2016-2018 test set), run twice: on all trials and
 #          on trials whose conditions field contains an oncology term.
 #          CV is looped manually, so only rsample/parsnip/workflows are needed.
-# Result (October 2026):
-#          all trials:          test R2 0.043, median abs error 21.2 mo, median error -18.6 mo
-#          oncology terms only: test R2 0.047, median abs error 19.3 mo, median error -18.2 mo
-#          Same top three predictors (sponsor: NIH, Government/Network, Academic/Other).
+# Result:  see app/models/sensitivity_oncology_filter.csv (written below).
 # Author:  Steven Ponce
 # Date:    October 2026
 # ============================================================================
@@ -84,6 +81,8 @@ run_enet <- function(data, label) {
     test_n              = nrow(test),
     cv_rmse             = round(min(cv_rmse), 3),
     test_r2             = round(rsq_vec(test$log_duration, pred), 3),
+    test_r2_trad        = round(1 - sum((test$log_duration - pred)^2) /
+                                  sum((test$log_duration - mean(test$log_duration))^2), 3),
     test_rmse           = round(rmse_vec(test$log_duration, pred), 3),
     median_abs_err_mo   = round(median(abs(err_months)), 1),
     median_err_mo       = round(median(err_months), 1),
@@ -107,3 +106,10 @@ print(table(
 
 cat("\nSensitivity results:\n")
 print(as.data.frame(t(results)))
+
+# Saved for the app (Methods > Known Limitations) so the numbers are never retyped
+modeled <- trials_features |> filter(start_year <= split_info$test_end)
+results <- results |>
+  mutate(n_modeled = nrow(modeled), n_no_oncology_term = sum(!modeled$is_onc))
+write.csv(results, here("app", "models", "sensitivity_oncology_filter.csv"), row.names = FALSE)
+cat("\nSaved: app/models/sensitivity_oncology_filter.csv\n")

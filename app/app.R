@@ -22,6 +22,7 @@ source("modules/mod_methods.R")
 
 # Source UI
 source("ui.R")
+ui <- tidy_text(ui)  # join inline text pieces (see global.R)
 
 # =============================================================================
 # SERVER

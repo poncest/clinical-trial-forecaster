@@ -28,9 +28,9 @@ mod_performance_ui <- function(id) {
           class = "kpi-card",
           div(class = "kpi-value", 
               style = paste0("color: ", colors$primary),
-              paste0(model_metrics$r_squared * 100, "%")),
-          div(class = "kpi-label", "R² (Variance Explained)"),
-          div(class = "kpi-context", "Test set")
+              sprintf("%.2f", model_metrics$r_squared)),
+          div(class = "kpi-label", "R² (1 − SSE/SST)"),
+          div(class = "kpi-context", sprintf("Test set; squared correlation %.2f", model_metrics$r_squared_cor))
         )
       ),
       
@@ -78,9 +78,16 @@ mod_performance_ui <- function(id) {
              "Actual vs Predicted Duration"),
           girafeOutput(ns("actual_vs_predicted"), height = "350px"),
           p(style = paste0("font-size: 0.85em; color: ", colors$text_muted, "; margin-top: 0.5em;"),
-            "Points on the diagonal would be perfect predictions. Most points sit above it:
-             the model predicts longer durations than 2016-2018 trials actually took,
-             and predictions cluster in a narrow band regardless of actual duration.")
+            local({
+              pr <- quantile(test_predictions$predicted_months, c(0.1, 0.9))
+              ac <- quantile(test_predictions$actual_months, c(0.1, 0.9))
+              paste0(
+                "Points on the diagonal would be perfect predictions. Predictions sit in a narrow band ",
+                "(middle 80%: ", round(pr[1]), "–", round(pr[2]), " months) while actual durations ",
+                "spread much wider (", round(ac[1]), "–", round(ac[2]), " months): the model explains ",
+                "little of the variation between trials."
+              )
+            }))
         )
       ),
       
@@ -97,11 +104,11 @@ mod_performance_ui <- function(id) {
               err <- test_predictions$residual_months  # actual minus predicted
               paste0(
                 "Error = actual minus predicted. The median error is ",
-                sprintf("%.1f", median(err, na.rm = TRUE)), " months, and ",
+                sprintf("%.1f", median(err, na.rm = TRUE)), " months and ",
                 round(100 * mean(err < 0, na.rm = TRUE)), "% of 2016-2018 test trials ",
-                "finished sooner than predicted. The model learned from longer pre-2016 trials, ",
-                "so it systematically overestimates later ones: this is the temporal drift ",
-                "described in Methods & Data."
+                "finished sooner than predicted: a small bias, consistent with the test window ",
+                "excluding long trials that had not finished by the data pull. The spread, not ",
+                "the bias, is the main problem."
               )
             }))
         )
@@ -117,8 +124,11 @@ mod_performance_ui <- function(id) {
          icon("balance scale"), " Model Comparison"),
       p(style = paste0("color: ", colors$text_secondary),
         "Four model types were compared using 10-fold cross-validation within the training
-         data (trials started 2015 or earlier). Elastic Net had the best cross-validated
-         performance. The 2016-2018 test set was used once, for the final evaluation only."),
+         data (trials started 2015 or earlier). All metrics in a row come from the same
+         configuration (the one with the best CV RMSE). All four are within one standard error
+         of each other on RMSE, so they are effectively tied and the simplest interpretable model,
+         Elastic Net, was kept. The 2016-2018 test set was not used for model selection; it was
+         used for the final evaluation and to size the forecaster's likely range."),
       
       reactableOutput(ns("model_comparison_table"))
     ),
@@ -166,7 +176,7 @@ mod_performance_ui <- function(id) {
             tags$li("Time-based train/test split"),
             tags$li("Train: ≤2015, Test: 2016-2018"),
             tags$li("10-fold cross-validation (within training)"),
-            tags$li("Excluded 2019+ (right-truncation bias)")
+            tags$li("Excluded 2019+ (only shorter trials had finished)")
           )
         ),
         
@@ -186,9 +196,9 @@ mod_performance_ui <- function(id) {
           h4("Limitations"),
           tags$ul(
             tags$li("Oncology-specific model"),
-            tags$li("Limited prospective accuracy (R² ≈ 4%)"),
+            tags$li(sprintf("Limited prospective accuracy (R² ≈ %.2f)", model_metrics$r_squared)),
             tags$li("Registry data lacks protocol details"),
-            tags$li("Trial practices changed over time (~30mo drift)")
+            tags$li("Test window excludes long, unfinished trials")
           )
         )
       )
@@ -329,6 +339,7 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
         select(
           Model,
           `RMSE (CV)` = rmse,
+          `± 1 SE` = rmse_std_err,
           `MAE (CV)` = mae,
           `R² (CV)` = rsq
         )
@@ -339,7 +350,7 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
           Model = colDef(
             width = 150,
             cell = function(value, index) {
-              if (index == 1) {
+              if (value == app_info$model_type) {
                 div(
                   span(value, style = "font-weight: 600;"),
                   span(
@@ -363,6 +374,7 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
               }
             }
           ),
+          `± 1 SE` = colDef(format = colFormat(digits = 3)),
           `MAE (CV)` = colDef(format = colFormat(digits = 3)),
           `R² (CV)` = colDef(
             format = colFormat(digits = 3),
@@ -397,6 +409,7 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
                          levels = rev(c("Phase 2", "Phase 1/2", "Phase 2/3", "Phase 3")))
         )
       
+      n_lookup <- setNames(phase_error$n, as.character(phase_error$phase))
       p <- ggplot(phase_error, aes(x = phase, y = median_error)) +
         geom_col_interactive(
           aes(
@@ -413,6 +426,7 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
         ) +
         scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
         labs(x = NULL, y = "Median Absolute Error (months)") +
+        scale_x_discrete(labels = function(x) paste0(x, " (n=", n_lookup[x], ")")) +
         coord_flip() +
         theme_minimal(base_size = 10) +
         theme(
@@ -449,6 +463,7 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
                            levels = rev(c("Industry", "Academic/Other", "NIH", "Government/Network")))
         )
       
+      n_lookup <- setNames(sponsor_error$n, as.character(sponsor_error$sponsor))
       p <- ggplot(sponsor_error, aes(x = sponsor, y = median_error)) +
         geom_col_interactive(
           aes(
@@ -465,6 +480,7 @@ mod_performance_server <- function(id, test_predictions, model_comparison, model
         ) +
         scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
         labs(x = NULL, y = "Median Absolute Error (months)") +
+        scale_x_discrete(labels = function(x) paste0(x, " (n=", n_lookup[x], ")")) +
         coord_flip() +
         theme_minimal(base_size = 10) +
         theme(

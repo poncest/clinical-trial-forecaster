@@ -348,40 +348,28 @@ cat("   ✓ Completed in", round(difftime(toc, tic, units = "secs"), 1), "second
 cat("STEP 8: Compare Cross-Validation Results\n")
 cat("------------------------------------------------------------\n\n")
 
-# Get best results from each model
-lm_best <- collect_metrics(lm_results) |>
-  select(.metric, mean) |>
-  pivot_wider(names_from = .metric, values_from = mean) |>
-  mutate(model = "Linear Regression")
+# Metrics for ONE configuration per model: the one with the best CV RMSE.
+# (rsq, rmse and mae are all reported for that same configuration.)
+config_metrics <- function(results, model_name, tuned = TRUE) {
+  m <- collect_metrics(results)
+  if (tuned) {
+    best_cfg <- select_best(results, metric = "rmse")
+    m <- m |> filter(.config == best_cfg$.config)
+  }
+  m |>
+    select(.metric, mean, std_err) |>
+    pivot_wider(names_from = .metric, values_from = c(mean, std_err)) |>
+    transmute(model = model_name, rsq = mean_rsq, rmse = mean_rmse, mae = mean_mae,
+              rmse_std_err = std_err_rmse)
+}
 
-enet_best <- show_best(enet_results, metric = "rmse", n = 1) |>
-  select(rmse = mean) |>
-  bind_cols(
-    show_best(enet_results, metric = "rsq", n = 1) |> select(rsq = mean),
-    show_best(enet_results, metric = "mae", n = 1) |> select(mae = mean)
-  ) |>
-  mutate(model = "Elastic Net")
-
-rf_best <- show_best(rf_results, metric = "rmse", n = 1) |>
-  select(rmse = mean) |>
-  bind_cols(
-    show_best(rf_results, metric = "rsq", n = 1) |> select(rsq = mean),
-    show_best(rf_results, metric = "mae", n = 1) |> select(mae = mean)
-  ) |>
-  mutate(model = "Random Forest")
-
-xgb_best <- show_best(xgb_results, metric = "rmse", n = 1) |>
-  select(rmse = mean) |>
-  bind_cols(
-    show_best(xgb_results, metric = "rsq", n = 1) |> select(rsq = mean),
-    show_best(xgb_results, metric = "mae", n = 1) |> select(mae = mean)
-  ) |>
-  mutate(model = "XGBoost")
-
-# Combine all results
-comparison_table <- bind_rows(lm_best, enet_best, rf_best, xgb_best) |>
-  select(model, rsq, rmse, mae) |>
-  arrange(desc(rsq))
+comparison_table <- bind_rows(
+  config_metrics(lm_results, "Linear Regression", tuned = FALSE),
+  config_metrics(enet_results, "Elastic Net"),
+  config_metrics(rf_results, "Random Forest"),
+  config_metrics(xgb_results, "XGBoost")
+) |>
+  arrange(rmse)
 
 cat("📊 Cross-Validation Results (10-fold, TRAINING data only):\n\n")
 print(comparison_table)
@@ -391,21 +379,28 @@ write.csv(comparison_table, here("app", "models", "model_comparison.csv"), row.n
 cat("\n✅ Model comparison saved: app/models/model_comparison.csv\n")
 
 # ----------------------------------------------------------------------------
-# Step 9: Select Best Model
+# Step 9: Select Model (one-standard-error rule)
 # ----------------------------------------------------------------------------
 
 cat("\n")
-cat("STEP 9: Select Best Model\n")
+cat("STEP 9: Select Model\n")
 cat("------------------------------------------------------------\n\n")
 
-# Select model with highest R²
-best_model_name <- comparison_table$model[1]
-cat("🏆 Best model based on R²:", best_model_name, "\n")
-cat("   R² =", round(comparison_table$rsq[1], 3), "\n")
-cat("   RMSE =", round(comparison_table$rmse[1], 3), "\n")
-cat("   MAE =", round(comparison_table$mae[1], 3), "\n")
+# Models whose CV RMSE is within one standard error of the best are treated as
+# tied. Among tied models, prefer the regularized linear model: interpretable
+# coefficients and shrinkage make it the most stable and explainable choice.
+preference <- c("Elastic Net", "Linear Regression", "Random Forest", "XGBoost")
+best_rmse  <- comparison_table$rmse[1]
+best_se    <- comparison_table$rmse_std_err[1]
+tied       <- comparison_table$model[comparison_table$rmse <= best_rmse + best_se]
+best_model_name <- preference[preference %in% tied][1]
 
-# Get the best workflow
+cat("📊 Lowest CV RMSE:", comparison_table$model[1], "=", round(best_rmse, 4),
+    "(SE", round(best_se, 4), ")\n")
+cat("📊 Tied within 1 SE:", paste(tied, collapse = ", "), "\n")
+cat("🏆 Selected:", best_model_name, "(simplest/most interpretable among tied models)\n")
+
+# Get the selected workflow
 if (best_model_name == "Linear Regression") {
   best_workflow <- lm_workflow
   best_params <- NULL

@@ -10,9 +10,13 @@
 
 This project demonstrates **end-to-end predictive analytics** for clinical trial duration modeling—and why **validation strategy matters more than model selection**.
 
-Initial random validation suggested strong performance (**R² = 0.84**). A time-based validation split—appropriate for prospective use—revealed minimal predictive power (**R² ≈ 0.04**).
+Holding the trials, features and model fixed, a random train/test split explains about a quarter of the variation in trial duration (**R² ≈ 0.23**). Training on trials started by 2015 and testing on trials started 2016–2018, which is how a forecast would actually be used, explains almost none of it (**R² ≈ 0.02**).
 
-**The finding is the insight:** realistic validation prevents overconfident forecasting from registry data.
+**The finding is the insight:** registry fields describe some historical pattern but carry almost no prospective signal, and only a validation that matches the intended use shows it.
+
+📝 **Case study write-up:** [Clinical Trial Duration Forecaster: A Validation-First Case Study](https://stevenponce.netlify.app/projects/standalone_visualizations/sa_2026-01-19.html)
+
+> **Correction (October 2026).** Earlier versions of this project reported a random-split R² of **0.84** and a time-based R² of **0.04**, and attributed the gap to temporal drift. Both figures were wrong. `lubridate::ymd()` misread ClinicalTrials.gov's month-only dates (e.g. `"2005-08"` was parsed as 2020-05-08), which mis-dated 622 trials, dropped about 1,000 others, and produced the spurious 0.84. The pipeline now parses month-only dates as the first of the month; the data were rebuilt, the models retrained, and every number in the app is computed from the saved artifacts. The conclusion that registry data cannot forecast trial duration still holds; the size of the random-split result does not.
 
 ------------------------------------------------------------------------
 
@@ -22,16 +26,18 @@ Initial random validation suggested strong performance (**R² = 0.84**). A time-
 
 ## Key Finding
 
-| Validation Approach | Test R² | Test Median Absolute Error | Interpretation |
-|----|---:|---:|----|
-| Random Split | 0.84 | 7.4 months | Over-optimistic (temporal leakage) |
-| **Time-Based Split** | **0.04** | **21.2 months** | **Honest prospective estimate** |
+Same cohort (2,499 trials started 2018 or earlier), recipe, tuning grid and Elastic Net model; only the split changes (`scripts/06_random_vs_time_split.R`).
+
+| Validation Approach | Test R² (1 − SSE/SST) | Squared correlation | Test Median Absolute Error | Interpretation |
+|----|---:|---:|---:|----|
+| Random split (mean of 5 seeds) | 0.23 | 0.23 | 20.4 months | Modest: describes historical patterns |
+| **Time-based split** | **0.02** | **0.11** | **15.2 months** | **Almost no prospective signal** |
 
 ### Why the gap?
 
--   **Temporal drift:** Trial durations shortened substantially across eras (median \~82 → \~53 months in this dataset)
--   **Registry limitations:** ClinicalTrials.gov lacks protocol complexity, endpoint strategy, and competitive dynamics
--   **Evolving practices:** Adaptive designs, biomarker selection, and regulatory changes altered duration drivers over time
+-   **Registry limitations:** ClinicalTrials.gov lacks protocol complexity, endpoint strategy, and competitive dynamics, so the signal that exists is weak and partly era-specific
+-   **Right-truncation of the test window:** only completed trials are included, so a 2016–2018 trial had to finish by the January 2026 data pull (longest: 112 months). That squeezes the test durations into a narrower range, which lowers R² and makes errors in months look *smaller* than on the random split. R², not error in months, is the fair comparison
+-   **Later trials look shorter, partly by construction:** median duration is 64 months for trials started by 2015 and 52 months for 2016–2018; among earlier trials no longer than 112 months the median is 56. Most of the apparent shift is the truncation above, not a change in practice
 
 This is not "model failure"—it shows why validation must match the intended decision context.
 
@@ -41,7 +47,7 @@ This is not "model failure"—it shows why validation must match the intended de
 
 ### Executive Brief
 
-![Executive Brief](screenshots/executive_brief.png) *Key metrics with honest R² = 0.04 and model summary*
+![Executive Brief](screenshots/executive_brief.png) *Key metrics (time-based R² vs random split), sponsor and size findings, and model summary*
 
 ### Duration Forecaster (Scenario Sandbox)
 
@@ -92,31 +98,33 @@ All results are conditional on historical registry patterns that may not persist
 ### Data Pipeline
 
 1.  **Acquisition:** ClinicalTrials.gov API v2 (pulled January 2026)
-2.  **Cohort:** Interventional, treatment-purpose oncology trials (keyword-based condition query; imperfect)
+2.  **Cohort:** Interventional, treatment-purpose oncology trials (keyword-based condition query; imperfect). Month-only registry dates are parsed as the first of the month
 3.  **Outcome:** Duration in months from **Start Date → Completion Date** (includes follow-up; not equivalent to LPLV)
-4.  **Features:** Enrollment, sites, countries, sponsor type, phase, derived ratios/log transforms
-5.  **Model:** **Elastic Net (glmnet)** via tidymodels
+4.  **Features:** Enrollment, sites, countries, sponsor type, phase, registration-to-start lag, derived ratios/log transforms (final reported values, known only in hindsight)
+5.  **Model:** **Elastic Net (glmnet)** via tidymodels (penalty 0.001, mixture 0.5)
 
 ### Validation Strategy (Time-Based)
 
 ```         
-Training:  Trials with start date ≤2015 (n=546)
-Test:      Trials with start date 2016–2018 (n=340)
-Excluded:  Trials with start date ≥2019 (n=878, right-truncation bias)
+Training:  Trials with start date ≤2015 (n=2,112)
+Test:      Trials with start date 2016–2018 (n=387)
+Excluded:  Trials with start date ≥2019 (n=256, right-truncation bias)
 ```
 
 Trials starting in 2019+ were excluded because only shorter-duration studies from that era are fully completed and present in the dataset as of the January 2026 data pull. Including them would bias observed durations downward.
 
 ### Model Comparison (CV within training data)
 
-| Model             |     CV R² | CV RMSE (log-months) |
-|-------------------|----------:|---------------------:|
-| **Elastic Net**   | **0.225** |            **0.486** |
-| Linear Regression |     0.219 |                0.488 |
-| Random Forest     |     0.212 |                0.493 |
-| XGBoost           |     0.205 |                0.491 |
+10-fold CV within the training data; each row's metrics come from the same configuration (best CV RMSE).
 
-**Final model used in the dashboard:** Elastic Net (glmnet)
+| Model             | CV R² | CV RMSE (log-months) | ± 1 SE |
+|-------------------|------:|---------------------:|-------:|
+| Random Forest     | 0.276 |                0.556 |  0.010 |
+| **Elastic Net**   | **0.265** |        **0.559** |  0.007 |
+| Linear Regression | 0.264 |                0.560 |  0.007 |
+| XGBoost           | 0.257 |                0.562 |  0.009 |
+
+All four are within one standard error of the best on RMSE, so they are effectively tied. **Final model used in the dashboard:** Elastic Net (glmnet), the simplest interpretable model in that tie. Its time-based test performance: R² 0.02, RMSE 0.608 (log scale), median absolute error 15.2 months.
 
 ------------------------------------------------------------------------
 
@@ -131,7 +139,7 @@ Trials starting in 2019+ were excluded because only shorter-duration studies fro
 -   Primary purpose: treatment
 -   Phase 1/2, 2, 2/3, or 3
 -   Completed with valid start/completion dates
--   Actual enrollment (final posted value)
+-   Actual enrollment (final posted value), 5–10,000 participants
 -   Duration 1–180 months
 
 ### Data Quality Notes
@@ -139,6 +147,7 @@ Trials starting in 2019+ were excluded because only shorter-duration studies fro
 -   Registry fields are self-reported and updated over time
 -   Historical snapshots are not available in this build
 -   Oncology cohort defined via keyword-based registry fields (imperfect)
+-   The January 2026 pull was capped at 2,000 trials per phase query (Phase 2 and Phase 3, in API order), so the cohort is a large sample of completed oncology trials, not all of them
 
 ------------------------------------------------------------------------
 
@@ -154,11 +163,11 @@ Trials starting in 2019+ were excluded because only shorter-duration studies fro
 
 ## Limitations
 
--   Oncology cohort defined via keyword-based registry fields (imperfect). About 8% of modeled trials (70 of 886) list no cancer term in their conditions field. Refitting without them changes test R² from 0.043 to 0.047 and median absolute error from 21.2 to 19.3 months; conclusions are unchanged (`scripts/05_sensitivity_oncology_filter.R`).
+-   Oncology cohort defined via keyword-based registry fields (imperfect). About 8% of modeled trials (208 of 2,499) list no cancer term in their conditions field. Refitting without them changes test R² from 0.023 to 0.019 and median absolute error from 15.2 to 14.7 months; conclusions are unchanged (`scripts/05_sensitivity_oncology_filter.R`).
 -   Registry fields are self-reported and updated over time
--   Limited prospective predictive power (R² ≈ 0.04)
--   Temporal drift may continue beyond observed patterns
--   Survivorship bias (completed trials only)
+-   Inputs (actual enrollment, sites, countries) are final values, known only once a trial is under way or finished
+-   Limited prospective predictive power (time-based R² ≈ 0.02)
+-   Survivorship and right-truncation bias (completed trials only; long recent trials are missing)
 
 ------------------------------------------------------------------------
 
@@ -169,7 +178,7 @@ clinical-trial-forecaster/
 ├── app/
 │   ├── app.R                    # Entry point
 │   ├── global.R                 # Data loading, metrics, helpers
-│   ├── ui.R                     # Main UI definition (moved from R/)
+│   ├── ui.R                     # Main UI definition
 │   ├── DESCRIPTION              # Package dependencies for shinyapps.io
 │   ├── modules/
 │   │   ├── mod_executive_brief.R
@@ -181,7 +190,9 @@ clinical-trial-forecaster/
 │   │   ├── final_workflow.rds
 │   │   ├── feature_importance.rds
 │   │   ├── model_comparison.csv
-│   │   └── test_predictions.csv
+│   │   ├── test_predictions.csv
+│   │   ├── split_comparison.csv            # random vs time-based split (script 06)
+│   │   └── sensitivity_oncology_filter.csv # cohort sensitivity check (script 05)
 │   ├── data-raw/
 │   │   ├── modeling/            # Feature table read by the app
 │   │   └── cache/               # Jan 2026 ClinicalTrials.gov snapshot (not deployed)
@@ -193,7 +204,9 @@ clinical-trial-forecaster/
 │   ├── 01_data_acquisition.R
 │   ├── 02_data_exploration.R
 │   ├── 03_feature_engineering.R
-│   └── 04_modeling.R
+│   ├── 04_modeling.R
+│   ├── 05_sensitivity_oncology_filter.R
+│   └── 06_random_vs_time_split.R
 └── screenshots/
 ```
 

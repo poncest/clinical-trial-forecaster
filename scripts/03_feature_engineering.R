@@ -127,11 +127,11 @@ trials_features <- trials_filtered |>
     # Sponsor: Collapse to 4 categories
     sponsor_simple = case_when(
       sponsor_class == "INDUSTRY" ~ "Industry",
-      sponsor_class == "OTHER" ~ "Academic/Other",
       sponsor_class == "NIH" ~ "NIH",
       sponsor_class %in% c("NETWORK", "OTHER_GOV", "FED") ~ "Government/Network",
-      TRUE ~ "Other"
-    ) |> factor(levels = c("Industry", "Academic/Other", "NIH", "Government/Network", "Other")),
+      # OTHER (mostly academic centers) and INDIV (individual investigators)
+      TRUE ~ "Academic/Other"
+    ) |> factor(levels = c("Industry", "Academic/Other", "NIH", "Government/Network")),
     
     # --- TRIAL SIZE CATEGORIES ---
     size_category = case_when(
@@ -164,7 +164,7 @@ trials_features <- trials_filtered |>
     start_year = year(start_date_parsed),
     
     # Registration to start lag (days)
-    registration_to_start = as.numeric(start_date_parsed - ymd(first_submit_date))
+    registration_to_start = as.numeric(start_date_parsed - as.Date(first_submit_date))  # always a full date
   )
 
 cat("✅ Created derived features:\n")
