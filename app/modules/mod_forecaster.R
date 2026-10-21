@@ -2,7 +2,7 @@
 # Module: Duration Forecaster
 # =============================================================================
 # Stage 3: Added validation caveat warning (R² ≈ 0.04 on time-based test)
-# Stage 2.5: Uses real model via predict(final_workflow, new_data)
+# Uses the saved Elastic Net workflow via predict(final_workflow, new_data)
 # Option A architecture: App passes raw inputs, recipe handles transforms
 # =============================================================================
 
@@ -137,7 +137,7 @@ mod_forecaster_server <- function(id, trials_data, ref_stats, phase_levels, spon
     # Store prediction
     pred_val <- reactiveVal(NULL)
     
-    # Button click - Stage 2.5: Use real XGBoost model
+    # Button click: predict with the saved Elastic Net workflow
     observeEvent(input$predict, {
       
       # Option A: Pass RAW inputs - recipe handles all transforms

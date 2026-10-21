@@ -96,10 +96,10 @@ mod_executive_brief_ui <- function(id) {
           # Finding 2
           div(
             class = "insight-box",
-            div(class = "insight-title", "Trial Size and Scope Matter"),
-            p("Enrollment size and number of countries show consistent associations with 
-               duration. Larger, more complex trials take longer—an expected pattern that 
-               provides face validity for the model.")
+            div(class = "insight-title", "Trial Size and Scope Play a Smaller Role"),
+            p("Larger enrollment and more countries are associated with somewhat longer 
+               trials, in the expected direction. Their coefficients are small next to 
+               sponsor type, so they add little predictive signal on their own.")
           ),
           
           # Finding 3
@@ -166,33 +166,33 @@ mod_executive_brief_ui <- function(id) {
       style = "margin-top: 1.5em;",
       
       h3(style = paste0("color: ", colors$primary_dark, "; margin-top: 0;"), 
-         icon("target"), " Potential Applications"),
+         icon("target"), " What This Analysis Is Good For"),
       
       div(
         class = "ui three column stackable grid",
         
         div(
           class = "column",
-          h4(style = paste0("color: ", colors$accent), icon("calendar alternate"), " Portfolio Planning"),
-          p("Use predictions as one input to estimate resource requirements and timeline 
-             dependencies. Flag studies with longer predicted durations for additional 
-             review—not as go/no-go decisions.")
+          h4(style = paste0("color: ", colors$accent), icon("check circle outline"), " Validation Practice"),
+          p("A worked example of why validation must match intended use: the same model 
+             looks strong under a random split and weak under a time-based one. The gap, 
+             not the model, is the finding.")
         ),
         
         div(
           class = "column",
-          h4(style = paste0("color: ", colors$accent), icon("dollar sign"), " Budget Scenarios"),
-          p("Duration estimates can inform cost projections. Consider generating scenarios 
-             across a range of durations (e.g., predicted ±6 months) rather than relying 
-             on point estimates.")
+          h4(style = paste0("color: ", colors$accent), icon("history"), " Historical Patterns"),
+          p("Describe how registry characteristics relate to duration in completed trials, 
+             e.g., longer durations for non-industry sponsors. Associations only; they 
+             should not be read as causes or used to set timelines.")
         ),
         
         div(
           class = "column",
-          h4(style = paste0("color: ", colors$accent), icon("exclamation triangle"), " Assumption Testing"),
-          p("Compare predictions to planned timelines. Large discrepancies may indicate 
-             optimistic assumptions worth reviewing—but model limitations mean discrepancies 
-             don't necessarily indicate problems.")
+          h4(style = paste0("color: ", colors$accent), icon("exclamation triangle"), " Uncertainty Awareness"),
+          p("Show how wide honest ranges are: 80% of recent test trials fell roughly 
+             between one-third and 1.2 times their model estimate. A planned timeline 
+             cannot be meaningfully confirmed or rejected with a band that wide.")
         )
       )
     ),

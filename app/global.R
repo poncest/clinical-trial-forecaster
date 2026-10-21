@@ -179,7 +179,7 @@ format_duration <- function(months) {
 # -----------------------------------------------------------------------------
 app_info <- list(
   title = "Clinical Trial Duration Forecaster",
-  subtitle = "Predictive Analytics for Trial Planning",
+  subtitle = "A Validation-First Case Study",
   version = "1.3.0",  # Stage 3: Time-based validation with documented limitations
   data_source = "ClinicalTrials.gov",
   n_trials = nrow(trials_data),  # full cohort (includes 2019+ trials excluded from modeling)
