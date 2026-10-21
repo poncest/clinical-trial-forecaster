@@ -64,8 +64,12 @@ mod_methods_ui <- function(id) {
           ". Part of that drop is the test window, not the model: only 2016–2018 trials that had ",
           "finished by the data pull are included. Scoring the random split on trials that fit ",
           "the same window gives R² ≈ ", sprintf("%.2f", model_metrics$random_trunc_r_squared),
-          ", so roughly ", share_window, "% of the drop comes from the window and the rest from ",
-          "predicting later trials. Either way, registry fields explain little of the variation."
+          ", so roughly ", share_window, "% of the drop comes from the window (",
+          model_metrics$window_share_range[1], "–", model_metrics$window_share_range[2],
+          "% across the five splits) and the rest from predicting later trials. That share is ",
+          "probably a lower bound: the check uses one ", model_metrics$test_max_months,
+          "-month cap, while trials started in ", model_metrics$test_end, " that finished ran at most ",
+          model_metrics$test_last_year_max_months, " months. Either way, registry fields explain little of the variation."
         )
       }),
       
@@ -114,12 +118,12 @@ mod_methods_ui <- function(id) {
               style = "color: #4A4A68; margin-top: 0.5em;",
               tags$strong("Check:"), " the random split scored only on test trials no longer than ",
               model_metrics$test_max_months, " months, the longest time-based test trial. ",
-              "Separates the truncated test window from the effect of time."
+              "Approximately separates the truncated test window from the effect of time."
             ),
             div(
               class = "ui label",
               style = "background: #8D6E00; color: white;",
-              "Isolates the window effect"
+              "Approximates the window effect"
             )
           )
         ),
@@ -144,7 +148,7 @@ mod_methods_ui <- function(id) {
             div(
               class = "ui label",
               style = "background: #2E7D32; color: white;",
-              "Appropriate for prospective use"
+              "Closest to prospective use"
             )
           )
         )

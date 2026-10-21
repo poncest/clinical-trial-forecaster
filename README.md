@@ -10,7 +10,7 @@
 
 This project demonstrates **end-to-end predictive analytics** for clinical trial duration modeling—and why **validation strategy matters more than model selection**.
 
-Holding the trials, features and model fixed, a random train/test split explains about a quarter of the variation in trial duration (**R² ≈ 0.24**). Training on trials started by 2015 and testing on trials started 2016–2018, which is how a forecast would actually be used, explains almost none of it (**R² ≈ 0.03**). About half of that drop comes from the test window itself (only trials that had finished by the data pull are included); the rest comes from predicting later trials.
+Holding the trials, features and model fixed, a random train/test split explains about a quarter of the variation in trial duration (**R² ≈ 0.24**). Training on trials started by 2015 and testing on trials started 2016–2018, which is how a forecast would actually be used, explains almost none of it (**R² ≈ 0.03**). About half of that drop (40–80% across five random splits) comes from the test window itself, since only trials that had finished by the data pull are included; the rest comes from predicting later trials.
 
 **The finding is the insight:** registry fields carry only a weak signal about trial duration, weaker still for future trials, and only a validation that matches the intended use shows how weak.
 
@@ -37,7 +37,7 @@ Same cohort (2,457 trials started 2018 or earlier), recipe, tuning grid and Elas
 ### Why the gap?
 
 -   **Registry limitations:** ClinicalTrials.gov lacks protocol complexity, endpoint strategy, and competitive dynamics, so the signal that exists is weak and partly era-specific
--   **Right-truncation of the test window:** only completed trials are included, so a 2016–2018 trial had to finish by the January 2026 data pull (longest: 112 months). Long trials are missing, which shifts test durations down (test trials ran on average about 13% shorter than predicted) and narrows their range. Both lower R², and both make errors in months look *smaller* than on the random split. Scoring the random split on the same window (middle row) separates this effect from the effect of time: roughly half the drop is the window
+-   **Right-truncation of the test window:** only completed trials are included, so a 2016–2018 trial had to finish by the January 2026 data pull (longest: 112 months). Long trials are missing, which shifts test durations down (test trials ran on average about 13% shorter than predicted) and slightly narrows their range. Both lower R², and both make errors in months look *smaller* than on the random split. Scoring the random split on the same window (middle row) approximately separates this effect from the effect of time: roughly half the drop (40–80% across splits) is the window. That is probably a lower bound, because the check applies a single 112-month cap while 2018 starts that finished ran at most 89 months
 -   **Later trials look shorter, partly by construction:** median duration is 64 months for trials started by 2015 and 52 months for 2016–2018; among earlier trials no longer than 112 months the median is 56. Most of the apparent shift is the truncation above, not a change in practice
 
 This is not "model failure"—it shows why validation must match the intended decision context.

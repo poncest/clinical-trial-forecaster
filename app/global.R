@@ -213,6 +213,15 @@ model_metrics <- list(
   mean_log_resid = round(mean(.y - .p), 3),
   pct_shorter_than_predicted = round(100 * (1 - exp(mean(.y - .p)))),
 
+  # Share of the random-vs-time R² drop explained by the truncated window,
+  # per random seed (min and max across the 5 splits)
+  window_share_range = local({
+    r  <- split_comparison$rsq_trad[grepl("^random \\(seed", split_comparison$split)]
+    rt <- split_comparison$rsq_trad[grepl("^random, truncation-matched \\(seed", split_comparison$split)]
+    tb <- split_comparison$rsq_trad[split_comparison$split == "time-based"]
+    round(100 * range((r - rt) / (r - tb)) / 10) * 10
+  }),
+
   # Fitted Elastic Net hyperparameters
   penalty = rlang::eval_tidy(.spec$args$penalty),
   mixture = rlang::eval_tidy(.spec$args$mixture),
@@ -229,6 +238,9 @@ model_metrics <- list(
   train_median_months = round(median(trials_data$duration_months[trials_data$start_year <= temporal_split_info$train_cutoff]), 1),
   test_median_months = round(median(test_predictions$actual_months), 1),
   test_max_months = round(max(test_predictions$actual_months)),
+  # Longest trial among the last test start year (tighter truncation)
+  test_last_year_max_months = round(max(trials_data$duration_months[
+    trials_data$start_year == temporal_split_info$test_end])),
   # Earlier trials no longer than the longest test trial (same truncation)
   train_capped_median_months = round(median(trials_data$duration_months[
     trials_data$start_year <= temporal_split_info$train_cutoff &
