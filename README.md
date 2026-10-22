@@ -53,20 +53,20 @@ Rules a planner could apply by hand, fitted on the same training trials and scor
 | Phase median | −0.24 | 19.8 months | 0.00 | 23.9 months |
 | Constant (training mean) | −0.14 | 18.6 months | −0.01 | 23.4 months |
 
-The model beats them by a few months of median error, so the registry fields carry some signal. Much of that margin uses final enrollment, sites and countries, known only in hindsight: with pre-start inputs only, time-based R² is −0.07 and the median error is 18.3 months, about the same as the constant.
+The model beats them by a few months of median error, so the registry fields carry some signal. Much of that margin uses final enrollment, sites and countries, known only in hindsight: with phase and sponsor only, time-based R² is −0.09 and the median error is 18.3 months, about the same as the constant.
 
 This is not "model failure"—it shows why validation must match the intended decision context.
 
 ### Censoring-aware check (October 2026)
 
-The published model keeps completed trials only. A fresh pull of every Phase 2/3 cancer treatment trial started 1990–2018, of any status (`scripts/10_download_all_statuses.R`), lets unfinished trials enter as censored observations (`scripts/11_survival_model.R`). With pre-start features only, trained on 1990–2015 starts and tested on 2016–2018 starts:
+The published model keeps completed trials only. A fresh pull of every Phase 2/3 cancer treatment trial started 1990–2018, of any status (`scripts/10_download_all_statuses.R`), lets unfinished trials enter as censored observations (`scripts/11_survival_model.R`). With phase and sponsor only, trained on 1990–2015 starts and tested on 2016–2018 starts:
 
 | Model | Predicted median (months) | Actual median, Kaplan–Meier | Concordance |
 |----|---:|---:|---:|
-| Weibull survival model, censored data | 73 | 73 | 0.56 |
-| Same features, completed trials only | 57 | 73 | 0.56 |
+| Weibull survival model, censored data | 76 | 73 | 0.57 |
+| Same features, completed trials only | 60 | 73 | 0.57 |
 
-Handling censoring removes a 16-month downward bias in the overall median, but that is aggregate agreement, not individual calibration: the ranking signal stays weak (concordance 0.56), so these registry features do not say *which* trials will run long. Excluded: trials with unknown status (3,677), withdrawn or never started (887), and finished trials with no end date (1,123).
+Handling censoring removes most of a 13-month downward bias in the overall median (the censored model is about 2 months high), but that is aggregate agreement, not individual calibration: the ranking signal stays weak (concordance 0.57), so these registry features do not say *which* trials will run long. Excluded: trials with unknown status (3,677), withdrawn or never started (887), and finished trials with no end date (1,123).
 
 **How terminated trials are treated.** The table above censors terminated trials at their stop date, which assumes termination says nothing about when a trial would have completed. Two alternatives (`scripts/11_survival_model.R`, section 3):
 
@@ -202,7 +202,7 @@ All four are within one standard error of the best on RMSE, so they are effectiv
 
 -   Oncology cohort defined via keyword-based registry fields (imperfect). About 8% of modeled trials (203 of 2,457) list no cancer term in their conditions field. Refitting without them changes test R² from 0.030 to 0.018 and median absolute error from 15.2 to 14.9 months; conclusions are unchanged (`scripts/05_sensitivity_oncology_filter.R`).
 -   Registry fields are self-reported and updated over time
--   Inputs (actual enrollment, sites, countries) are final values, known only once a trial is under way or finished. With only what is known at study start (phase, sponsor, registration-to-start lag), R² falls from 0.24 to 0.10 on a random split and from 0.03 to −0.07 on later trials (`scripts/08_prestart_features.R`): most of the signal comes from hindsight inputs
+-   Inputs (actual enrollment, sites, countries) are final values, known only once a trial is under way or finished. With phase and sponsor only, R² falls from 0.24 to 0.09 on a random split and from 0.03 to −0.09 on later trials (`scripts/08_prestart_features.R`): most of the signal comes from hindsight inputs. Registration-to-start lag is also a hindsight input for most trials: 55% of modeled trials (1,353 of 2,457) were first registered after they started, so it is not used in the reduced-feature baseline or the survival check (adding it changes time-based R² only from −0.09 to −0.07)
 -   Weak signal for later trials (time-based R² ≈ 0.03), measured on retrospectively observed records rather than a historical backtest
 -   The sandbox's range is pooled from past test errors; its coverage for a new trial is not established, and ranges beyond 180 months are shown as "180+"
 -   Each Phase 2/3 trial is counted once; the API pull was split by phase, and duplicates across queries are removed
@@ -233,7 +233,7 @@ clinical-trial-forecaster/
 │   │   ├── split_comparison.csv            # random vs time-based split (script 06)
 │   │   ├── sensitivity_oncology_filter.csv # cohort sensitivity check (script 05)
 │   │   ├── date_parsing_audit.csv          # counts behind the correction note (script 07)
-│   │   ├── prestart_comparison.csv         # pre-start-only features (script 08)
+│   │   ├── prestart_comparison.csv         # phase-and-sponsor baseline vs full model (script 08)
 │   │   ├── sampling_order_check.csv        # API return-order check (script 09)
 │   │   ├── survival_*.csv                  # censoring-aware check + termination sensitivity (script 11)
 │   │   └── benchmark_comparison.csv        # constant and phase/sponsor median benchmarks (script 12)
@@ -264,7 +264,7 @@ clinical-trial-forecaster/
 
 ## Reproduce
 
-Requires R 4.3+ and the packages in `app/DESCRIPTION` plus `here`, `rsample`, `survival` and `glmnet` for the scripts (installed from CRAN; the project does not use renv). From the project root:
+Requires R 4.3+. `Rscript scripts/00_setup.R` installs every package the app and the rebuild scripts load (including tidymodels, glmnet, ranger, xgboost, vip, janitor, tictoc and survival); the project does not use renv, so versions are not pinned. From the project root:
 
 1.  `Rscript scripts/run_all.R` rebuilds every artifact in `app/models/` from the cached January 2026 snapshot (model tuning takes several minutes), then runs the regression checks
 2.  `Rscript scripts/13_regression_checks.R` on its own checks the rebuilt data: month-only dates parse to the first of the month, one row per trial, dates and durations agree, split boundaries and sizes, and the model's predictors

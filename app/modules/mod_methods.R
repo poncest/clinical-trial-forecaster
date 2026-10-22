@@ -197,8 +197,8 @@ mod_methods_ui <- function(id) {
             "Benchmarks a planner could apply by hand, fitted on the same training trials ",
             "(scripts/12_benchmarks.R). The model beats them, so the registry fields carry some signal, ",
             "but the margin is a few months of median error. Its enrollment, site and country inputs are ",
-            "final values known only after the trial; with pre-start inputs only, the time-based R² is ",
-            sprintf("%.2f", prestart_r2("pre-start only", "time-based")), ".")
+            "final values known only after the trial; with phase and sponsor only, the time-based R² is ",
+            sprintf("%.2f", prestart_r2("phase and sponsor", "time-based")), ".")
         )
       }),
       
@@ -253,7 +253,7 @@ mod_methods_ui <- function(id) {
             round(k$early$km_median), " months for 1990-2015 starts and ", round(k$late$km_median),
             " months for 2016-2018 starts (completed trials only: ", round(k$early$completed_only_median),
             " and ", round(k$late$completed_only_median), "). On this measure later trials are not shorter, ",
-            "which points to the cut-off rather than a real shortening (see the termination check below). With pre-start features, a Weibull survival model trained on ",
+            "which points to the cut-off rather than a real shortening (see the termination check below). With phase and sponsor only, a Weibull survival model trained on ",
             "1990-2015 starts predicts a median of ", round(v$aft$median_predicted_months),
             " months for 2016-2018 starts (actual ", round(v$aft$test_km_median_months), "), while the same ",
             "features fitted to completed trials only predict ", round(v$naive$median_predicted_months),
@@ -299,7 +299,7 @@ mod_methods_ui <- function(id) {
             " trials were terminated. Under all three treatments, later trials are not shorter, so the ",
             "conclusion does not depend on how termination is handled. Matching an overall median is ",
             "aggregate agreement only: it does not show that individual estimates are well calibrated ",
-            "(concordance stays near 0.56). scripts/11_survival_model.R, section 3."
+            "(concordance stays near 0.57). scripts/11_survival_model.R, section 3."
           ))
         )
       }),
@@ -558,14 +558,16 @@ mod_methods_ui <- function(id) {
         p(paste0("Enrollment, number of sites and number of countries are the final values reported ",
            "at completion, not what was planned. Registration-to-start lag is the gap between ",
            "first registration and study start; it is negative for the many trials registered ",
-           "after they started. Refitting with only what is known at study start (phase, sponsor, ",
-           "registration-to-start lag) drops R² from ",
+           "after they started (55% of modeled trials), so for them it was not known at study start either. ",
+           "Refitting with phase and sponsor only, baseline characteristics nominally fixed at study start, ",
+           "drops R² from ",
            sprintf("%.2f", prestart_r2("all (published model)", "random")), " to ",
-           sprintf("%.2f", prestart_r2("pre-start only", "random")), " on a random split and from ",
+           sprintf("%.2f", prestart_r2("phase and sponsor", "random")), " on a random split and from ",
            sprintf("%.2f", prestart_r2("all (published model)", "time-based")), " to ",
-           sprintf("%.2f", prestart_r2("pre-start only", "time-based")),
-           " on later trials (worse than predicting the average). Most of the signal comes from ",
-           "inputs known only in hindsight (scripts/08_prestart_features.R)."))
+           sprintf("%.2f", prestart_r2("phase and sponsor", "time-based")),
+           " on later trials (below zero: worse than predicting the average). Most of the signal comes from ",
+           "inputs known only in hindsight (scripts/08_prestart_features.R). Phase and sponsor are also ",
+           "taken from records retrieved in 2026, not from historical snapshots."))
       ),
       
       div(
@@ -745,7 +747,7 @@ mod_methods_server <- function(id, trials_data, app_info) {
           "Natural log of (number of sites + 1)",
           "Natural log of (enrollment / (sites + 1) + 1)",
           "Number of countries with participating sites",
-          "Days from first ClinicalTrials.gov registration to study start (negative if registered after start)",
+          "Days from first ClinicalTrials.gov registration to study start (negative if registered after start, as 55% were; then not known at study start)",
           "Simplified phase category (Phase 2, 1/2, 2/3, 3)",
           "Sponsor type (Industry, Academic/Other, NIH, Gov/Network)",
           "Binary: trial has more than one site",

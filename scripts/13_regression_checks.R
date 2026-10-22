@@ -11,7 +11,10 @@
 #               counts match the saved split
 #            5. The model uses only the stated predictors, all available
 #               for every trial
-#            6. Pre-start predictors are known before the trial starts
+#            6. Registration-to-start lag is reproduced from the dates, and
+#               the reduced-feature baseline does not use it (most trials
+#               were registered after they started, so it is not a
+#               pre-start input)
 # Run:     Rscript scripts/13_regression_checks.R (also run by run_all.R)
 # Author:  Steven Ponce
 # Date:    October 2026
@@ -74,13 +77,23 @@ check(setequal(preds, expected), paste0("model predictors are exactly: ", paste(
 check(all(preds %in% names(tf)), "every predictor exists in the modeling data")
 check(!anyNA(tf[, c("phase_simple", "sponsor_simple")]), "phase and sponsor known for every trial")
 
-# 6. Pre-start predictors --------------------------------------------------------
-# Registration-to-start must be computed from dates on or before the start
-# date; final enrollment, sites and countries are only known later, which is
-# why scripts/08 refits without them.
+# 6. Registration lag and the reduced-feature baseline ----------------------------
+# The lag is start date minus first registry submission. It is negative for
+# trials registered after they started, so for them it was not known at
+# study start: it is a hindsight input like final enrollment, sites and
+# countries, and the baseline in scripts/08 and 11 uses phase and sponsor only.
 reg <- as.numeric(tf$start_date_parsed - as.Date(tf$first_submit_date))
 check(max(abs(reg - tf$registration_to_start), na.rm = TRUE) < 1,
       "registration_to_start = start date - first registry submission")
+modeled <- tf[tf$start_year <= si$test_end, ]
+cat("INFO - trials registered after their start date (lag unknown at start):",
+    sum(modeled$registration_to_start < 0, na.rm = TRUE), "of", nrow(modeled), "\n")
+s08 <- paste(readLines(here("scripts", "08_prestart_features.R")), collapse = "\n")
+check(grepl("baseline_recipe <- reduced_recipe(log_duration ~ phase_simple + sponsor_simple)", s08, fixed = TRUE),
+      "scripts/08 baseline uses phase and sponsor only")
+model_lines <- grep("(survreg|lm)\\(", readLines(here("scripts", "11_survival_model.R")), value = TRUE)
+check(length(model_lines) >= 2 && !any(grepl("lag|registration", model_lines)),
+      "scripts/11 survival models do not use registration lag")
 
 cat("\n", if (n_fail == 0) "All checks passed." else paste(n_fail, "check(s) FAILED."), "\n")
 if (n_fail > 0) quit(status = 1)

@@ -13,9 +13,11 @@
 #            - excluded: withdrawn / not yet recruiting (never started),
 #              UNKNOWN status (dates not verified for 2+ years), and finished
 #              trials with no end date (duration unknown)
-#          Features are limited to what is known at study start (phase,
-#          sponsor type, registration-to-start lag), so the comparison is a
-#          fair prospective test.
+#          Features are limited to phase and sponsor type, baseline
+#          characteristics nominally fixed at study start (observed in
+#          records retrieved in 2026). Registration-to-start lag is not
+#          used: most trials were registered after they started, so their
+#          lag was not known at study start.
 #          1. Kaplan-Meier median duration by start era vs completed-only median
 #          2. Time-based validation (train <= 2015, test 2016-2018): Weibull AFT
 #             on censored data vs a log-duration regression fitted on completed
@@ -95,10 +97,6 @@ surv_data <- base |>
   ) |>
   filter(!is.na(phase_simple), !is.na(time_months), time_months > 0)
 
-# Impute the lag with the training median (train = started <= 2015)
-lag_med <- median(surv_data$registration_to_start[surv_data$start_year <= 2015], na.rm = TRUE)
-surv_data$registration_to_start[is.na(surv_data$registration_to_start)] <- lag_med
-surv_data$lag_years <- surv_data$registration_to_start / 365.25
 
 cat("Cohort:", nrow(surv_data), "trials;", sum(surv_data$event), "completed,",
     sum(1 - surv_data$event), "censored\n")
@@ -135,14 +133,14 @@ km_curves <- bind_rows(lapply(names(km$strata), function(s) {
 }))
 
 # ---------------------------------------------------------------------------
-# 2. Time-based validation, pre-start features only
+# 2. Time-based validation, phase and sponsor only
 # ---------------------------------------------------------------------------
 train <- surv_data |> filter(start_year <= 2015)
 test  <- surv_data |> filter(start_year >= 2016)
 
-aft <- survreg(Surv(time_months, event) ~ phase_simple + sponsor_simple + lag_years,
+aft <- survreg(Surv(time_months, event) ~ phase_simple + sponsor_simple,
                data = train, dist = "weibull")
-naive <- lm(log(time_months) ~ phase_simple + sponsor_simple + lag_years,
+naive <- lm(log(time_months) ~ phase_simple + sponsor_simple,
             data = train |> filter(event == 1))
 
 test$pred_aft   <- predict(aft, newdata = test, type = "quantile", p = 0.5)  # median months

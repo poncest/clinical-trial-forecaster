@@ -4,10 +4,17 @@
 # ============================================================================
 # Purpose: The published model uses final (actual) enrollment, sites and
 #          countries, which are known only once a trial is under way or
-#          finished. This refits the same Elastic Net with only features
-#          known at study start (phase, sponsor type, registration-to-start
-#          lag) and compares both feature sets on the same splits as
-#          06_random_vs_time_split.R.
+#          finished. This refits the same Elastic Net with reduced feature
+#          sets and compares them on the same splits as
+#          06_random_vs_time_split.R:
+#            - "phase and sponsor": the baseline characteristics. Observed
+#              in records retrieved in 2026 (no historical snapshots), but
+#              nominally fixed at study start
+#            - "phase, sponsor and lag": adds registration-to-start lag. NOT
+#              strictly pre-start: 55% of modeled trials were first
+#              registered after their start date, so their (negative) lag
+#              could not have been known at study start. Kept only as a
+#              reduced-feature comparison
 # Output:  app/models/prestart_comparison.csv
 # Author:  Steven Ponce
 # Date:    October 2026
@@ -25,16 +32,19 @@ full_recipe     <- readRDS(here("app", "data-raw", "modeling", "trial_recipe.rds
 split_info      <- readRDS(here("app", "models", "temporal_split_info.rds"))
 cohort <- trials_features |> filter(start_year <= split_info$test_end)
 
-# Features known at study start: no enrollment, sites or countries
-prestart_recipe <- recipe(
-  log_duration ~ registration_to_start + phase_simple + sponsor_simple,
-  data = cohort
-) |>
-  step_impute_median(all_numeric_predictors()) |>
-  step_impute_mode(all_nominal_predictors()) |>
-  step_normalize(all_numeric_predictors()) |>
-  step_dummy(all_nominal_predictors(), one_hot = FALSE) |>
-  step_zv(all_predictors())
+# Reduced feature sets: no enrollment, sites or countries
+reduced_recipe <- function(formula) {
+  recipe(formula, data = cohort) |>
+    step_impute_median(all_numeric_predictors()) |>
+    step_impute_mode(all_nominal_predictors()) |>
+    step_normalize(all_numeric_predictors()) |>
+    step_dummy(all_nominal_predictors(), one_hot = FALSE) |>
+    step_zv(all_predictors())
+}
+baseline_recipe <- reduced_recipe(log_duration ~ phase_simple + sponsor_simple)
+lag_recipe <- reduced_recipe(log_duration ~ registration_to_start + phase_simple + sponsor_simple)
+cat("Trials first registered after their start date:",
+    sum(cohort$registration_to_start < 0, na.rm = TRUE), "of", nrow(cohort), "\n")
 
 rmse_vec <- function(t, e) sqrt(mean((t - e)^2))
 
@@ -69,7 +79,8 @@ score <- function(fit, test) {
 run_split <- function(train, test, label, seed = 2026) {
   bind_rows(
     c(features = "all (published model)", split = label, as.list(score(fit_enet(train, full_recipe, seed), test))),
-    c(features = "pre-start only", split = label, as.list(score(fit_enet(train, prestart_recipe, seed), test)))
+    c(features = "phase and sponsor", split = label, as.list(score(fit_enet(train, baseline_recipe, seed), test))),
+    c(features = "phase, sponsor and lag", split = label, as.list(score(fit_enet(train, lag_recipe, seed), test)))
   )
 }
 
