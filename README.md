@@ -8,15 +8,15 @@
 
 ## Overview
 
-This project demonstrates **end-to-end predictive analytics** for clinical trial duration modeling—and why **validation strategy matters more than model selection**.
+This project demonstrates **end-to-end predictive analytics** for clinical trial duration modeling. In this case study, the **choice of validation strategy changed the answer far more than the choice of model**.
 
-Holding the trials, features and model fixed, a random train/test split explains about a quarter of the variation in trial duration (**R² ≈ 0.24**). Training on trials started by 2015 and testing on trials started 2016–2018, which is how a forecast would actually be used, explains almost none of it (**R² ≈ 0.03**). About half of that drop (40–80% across five random splits) comes from the test window itself, since only trials that had finished by the data pull are included; the rest comes from predicting later trials.
+Holding the trials, features and model fixed, a random train/test split explains about a quarter of the variation in trial duration (**R² ≈ 0.24**). Training on trials started by 2015 and testing on trials started 2016–2018, the closest available test of forecasting later trials, explains almost none of it (**R² ≈ 0.03**). Part of that drop comes from the test window itself, since only trials that had finished by the data pull are included: a sensitivity check suggests a large share (40–80% across five random splits), though it illustrates the window's effect rather than decomposing the gap.
 
-**The finding is the insight:** registry fields carry only a weak signal about trial duration, weaker still for future trials, and only a validation that matches the intended use shows how weak.
+**The finding is the insight:** the registry features and models evaluated here carry only a modest retrospective signal about trial duration, and did not support reliable forecasts of individual trial duration for later trials. Only a validation that resembles the intended use showed how weak the signal is.
 
 📝 **Case study write-up:** [Clinical Trial Duration Forecaster: A Validation-First Case Study](https://stevenponce.netlify.app/projects/standalone_visualizations/sa_2026-01-19.html)
 
-> **Correction (October 2026).** Earlier versions of this project reported a random-split R² of **0.84** and a time-based R² of **0.04**, and attributed the gap to temporal drift. Both figures were wrong. `lubridate::ymd()` misread ClinicalTrials.gov's month-only dates (e.g. `"2005-08"` was parsed as 2020-05-08), which mis-dated 609 trials, dropped 975 others, and produced the spurious 0.84. A follow-up check also found 74 Phase 2/3 trials counted twice (returned by both the Phase 2 and Phase 3 queries). The pipeline now parses month-only dates as the first of the month and removes duplicates; the data were rebuilt, the models retrained, and every number in the app is computed from the saved artifacts. The counts are reproduced by `scripts/07_date_parsing_audit.R`. The conclusion that registry data cannot forecast trial duration still holds; the size of the random-split result does not.
+> **Correction (October 2026).** Earlier versions of this project reported a random-split R² of **0.84** and a time-based R² of **0.04**, and attributed the gap to temporal drift. Both figures were wrong. `lubridate::ymd()` misread ClinicalTrials.gov's month-only dates (e.g. `"2005-08"` was parsed as 2020-05-08), which mis-dated 609 trials, dropped 975 others, and produced the spurious 0.84. A follow-up check also found 74 Phase 2/3 trials counted twice (returned by both the Phase 2 and Phase 3 queries). The pipeline now parses month-only dates as the first of the month and removes duplicates; the data were rebuilt, the models retrained, and every number in the app is computed from the saved artifacts. The counts are reproduced by `scripts/07_date_parsing_audit.R`. The conclusion that these registry features and models did not support reliable forecasts for later trials still holds; the size of the random-split result does not.
 
 ------------------------------------------------------------------------
 
@@ -32,13 +32,28 @@ Same cohort (2,457 trials started 2018 or earlier), recipe, tuning grid and Elas
 |----|---:|---:|---:|----|
 | Random split (mean of 5 seeds) | 0.24 | 0.24 | 20.6 months | Modest: describes historical patterns |
 | Random split, scored on trials ≤ 112 months | 0.13 | 0.16 | 17.6 months | Same truncated window as the time-based test |
-| **Time-based split** | **0.03** | **0.11** | **15.2 months** | **Very little prospective signal** |
+| **Time-based split** | **0.03** | **0.11** | **15.2 months** | **Very little signal for later trials** |
 
 ### Why the gap?
 
 -   **Registry limitations:** ClinicalTrials.gov lacks protocol complexity, endpoint strategy, and competitive dynamics, so the signal that exists is weak and partly era-specific
--   **Right-truncation of the test window:** only completed trials are included, so a 2016–2018 trial had to finish by the January 2026 data pull (longest: 112 months). Long trials are missing, which shifts test durations down (test trials ran on average about 13% shorter than predicted) and slightly narrows their range. Both lower R², and both make errors in months look *smaller* than on the random split. Scoring the random split on the same window (middle row) approximately separates this effect from the effect of time: roughly half the drop (40–80% across splits) is the window. That is probably a lower bound, because the check applies a single 112-month cap while 2018 starts that finished ran at most 89 months
--   **Later trials only look shorter:** among completed trials, median duration is 64 months for trials started by 2015 and 52 months for 2016–2018; among earlier trials no longer than 112 months the median is 56. A censoring-aware check on a full pull of 20,562 trials (any status, unfinished trials censored) settles it: counting the trials still running, the median is 68 months for 1990–2015 starts and **73 months for 2016–2018 starts**. Later trials are not shorter; the apparent shortening is the cut-off
+-   **Right-truncation of the test window:** only completed trials are included, so a 2016–2018 trial had to finish by the January 2026 data pull (longest: 112 months). Long trials are missing, which shifts test durations down (test trials ran on average about 13% shorter than predicted) and slightly narrows their range. Both lower R², and both make errors in months look *smaller* than on the random split. Scoring the random split on the same window (middle row) is a sensitivity check on this effect: it suggests the window accounts for a large part of the drop (40–80% across splits). It is an illustration, not a decomposition: the comparisons also differ in cohort, training data and follow-up, and a single 112-month cap is not each trial's own follow-up limit
+-   **Later trials only look shorter:** among completed trials, median duration is 64 months for trials started by 2015 and 52 months for 2016–2018; among earlier trials no longer than 112 months the median is 56. A censoring-aware check on a full pull of 20,562 trials (any status, unfinished trials censored) points the same way: counting the trials still running, the median is 68 months for 1990–2015 starts and **73 months for 2016–2018 starts**. Under three different treatments of terminated trials (below), later trials are not shorter, which points to the cut-off rather than a real shortening
+
+**Not a historical backtest.** The time-based split measures transfer across start-year cohorts using records retrieved in 2026. A model built in 2016 could not have known the eventual end dates of every trial started before then, and registry fields are updated after the fact. A stricter backtest would limit outcomes and predictors to what the registry showed at each forecast date, which needs archived snapshots this project does not have.
+
+### Against simple benchmarks
+
+Rules a planner could apply by hand, fitted on the same training trials and scored on the same splits (`scripts/12_benchmarks.R`):
+
+| Model | Test R², time-based | Median abs. error, time-based | Test R², random (mean of 5) | Median abs. error, random |
+|----|---:|---:|---:|---:|
+| **Elastic Net (all features)** | **0.03** | **15.2 months** | **0.24** | **20.6 months** |
+| Phase × sponsor median | −0.19 | 19.3 months | 0.08 | 22.3 months |
+| Phase median | −0.24 | 19.8 months | 0.00 | 23.9 months |
+| Constant (training mean) | −0.14 | 18.6 months | −0.01 | 23.4 months |
+
+The model beats them by a few months of median error, so the registry fields carry some signal. Much of that margin uses final enrollment, sites and countries, known only in hindsight: with pre-start inputs only, time-based R² is −0.07 and the median error is 18.3 months, about the same as the constant.
 
 This is not "model failure"—it shows why validation must match the intended decision context.
 
@@ -51,7 +66,17 @@ The published model keeps completed trials only. A fresh pull of every Phase 2/3
 | Weibull survival model, censored data | 73 | 73 | 0.56 |
 | Same features, completed trials only | 57 | 73 | 0.56 |
 
-Handling censoring removes a 16-month downward bias, but the ranking signal stays weak: registry fields still cannot say *which* trials will run long. Excluded: trials with unknown status (3,677), withdrawn or never started (887), and finished trials with no end date (1,123); terminated trials are censored at their stop date.
+Handling censoring removes a 16-month downward bias in the overall median, but that is aggregate agreement, not individual calibration: the ranking signal stays weak (concordance 0.56), so these registry features do not say *which* trials will run long. Excluded: trials with unknown status (3,677), withdrawn or never started (887), and finished trials with no end date (1,123).
+
+**How terminated trials are treated.** The table above censors terminated trials at their stop date, which assumes termination says nothing about when a trial would have completed. Two alternatives (`scripts/11_survival_model.R`, section 3):
+
+| Estimand | Started 1990–2015 | Started 2016–2018 |
+|----|---:|---:|
+| Median time to completion, terminated censored (above) | 68 months | 73 months |
+| Median time to study end (completion or termination) | 58 months | 60 months |
+| Time until half have completed (termination as a competing event) | 76 months | 84 months |
+
+Under all three, later trials are not shorter, so that conclusion does not depend on how termination is handled.
 
 ------------------------------------------------------------------------
 
@@ -61,9 +86,9 @@ Handling censoring removes a 16-month downward bias, but the ranking signal stay
 
 ![Executive Brief](screenshots/executive_brief.png) *Key metrics (time-based R² vs random split), sponsor and size findings, and model summary*
 
-### Duration Forecaster (Scenario Sandbox)
+### Model Sandbox
 
-![Duration Forecaster](screenshots/forecaster.png) *Interactive tool showing how the model behaves, with an empirical likely range from test-set errors—not for operational planning*
+![Model Sandbox](screenshots/forecaster.png) *Shows how the fitted model responds to trial characteristics, with the historical test-error range (how far 2016–2018 test trials fell from their estimates); not a forecast for planning*
 
 ### Feature Explorer
 
@@ -178,7 +203,8 @@ All four are within one standard error of the best on RMSE, so they are effectiv
 -   Oncology cohort defined via keyword-based registry fields (imperfect). About 8% of modeled trials (203 of 2,457) list no cancer term in their conditions field. Refitting without them changes test R² from 0.030 to 0.018 and median absolute error from 15.2 to 14.9 months; conclusions are unchanged (`scripts/05_sensitivity_oncology_filter.R`).
 -   Registry fields are self-reported and updated over time
 -   Inputs (actual enrollment, sites, countries) are final values, known only once a trial is under way or finished. With only what is known at study start (phase, sponsor, registration-to-start lag), R² falls from 0.24 to 0.10 on a random split and from 0.03 to −0.07 on later trials (`scripts/08_prestart_features.R`): most of the signal comes from hindsight inputs
--   Limited prospective predictive power (time-based R² ≈ 0.03)
+-   Weak signal for later trials (time-based R² ≈ 0.03), measured on retrospectively observed records rather than a historical backtest
+-   The sandbox's range is pooled from past test errors; its coverage for a new trial is not established, and ranges beyond 180 months are shown as "180+"
 -   Each Phase 2/3 trial is counted once; the API pull was split by phase, and duplicates across queries are removed
 -   Survivorship and right-truncation bias (completed trials only; long recent trials are missing)
 
@@ -209,7 +235,8 @@ clinical-trial-forecaster/
 │   │   ├── date_parsing_audit.csv          # counts behind the correction note (script 07)
 │   │   ├── prestart_comparison.csv         # pre-start-only features (script 08)
 │   │   ├── sampling_order_check.csv        # API return-order check (script 09)
-│   │   └── survival_*.csv                  # censoring-aware check (script 11)
+│   │   ├── survival_*.csv                  # censoring-aware check + termination sensitivity (script 11)
+│   │   └── benchmark_comparison.csv        # constant and phase/sponsor median benchmarks (script 12)
 │   ├── data-raw/
 │   │   ├── modeling/            # Feature table read by the app
 │   │   └── cache/               # Jan 2026 snapshot + Oct 2026 all-status pull (not deployed)
@@ -218,7 +245,7 @@ clinical-trial-forecaster/
 │       └── styles.css
 ├── scripts/                     # Data pipeline
 │   ├── 00_setup.R
-│   ├── run_all.R                # rebuilds every app artifact (02-09)
+│   ├── run_all.R                # rebuilds every app artifact (02-09, 11-13)
 │   ├── 01_api_connection_test.R
 │   ├── 02_download_and_clean.R
 │   ├── 03_feature_engineering.R
@@ -229,9 +256,19 @@ clinical-trial-forecaster/
 │   ├── 08_prestart_features.R
 │   ├── 09_sampling_order_check.R
 │   ├── 10_download_all_statuses.R   # full any-status pull (needs internet)
-│   └── 11_survival_model.R
+│   ├── 11_survival_model.R
+│   ├── 12_benchmarks.R
+│   └── 13_regression_checks.R       # stops if an audited error reappears
 └── screenshots/
 ```
+
+## Reproduce
+
+Requires R 4.3+ and the packages in `app/DESCRIPTION` plus `here`, `rsample`, `survival` and `glmnet` for the scripts (installed from CRAN; the project does not use renv). From the project root:
+
+1.  `Rscript scripts/run_all.R` rebuilds every artifact in `app/models/` from the cached January 2026 snapshot (model tuning takes several minutes), then runs the regression checks
+2.  `Rscript scripts/13_regression_checks.R` on its own checks the rebuilt data: month-only dates parse to the first of the month, one row per trial, dates and durations agree, split boundaries and sizes, and the model's predictors
+3.  `shiny::runApp("app")`
 
 ------------------------------------------------------------------------
 

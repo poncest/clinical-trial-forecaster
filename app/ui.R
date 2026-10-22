@@ -241,7 +241,7 @@ ui <- semanticPage(
         a(
           class = "item",
           `data-tab` = "forecaster",
-          icon("calculator"), "Duration Forecaster"
+          icon("calculator"), "Model Sandbox"
         ),
         a(
           class = "item",

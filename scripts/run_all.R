@@ -22,7 +22,9 @@ scripts <- c(
   "07_date_parsing_audit.R",          # counts behind the correction note
   "08_prestart_features.R",           # signal left with pre-start features only
   "09_sampling_order_check.R",        # does the API cap cut by date?
-  "11_survival_model.R"               # censoring-aware check (uses script 10's pull)
+  "11_survival_model.R",              # censoring-aware check (uses script 10's pull)
+  "12_benchmarks.R",                  # constant and phase/sponsor median benchmarks
+  "13_regression_checks.R"            # stops if an audited error reappears
 )
 
 for (s in scripts) {
