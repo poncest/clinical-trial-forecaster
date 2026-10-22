@@ -20,9 +20,10 @@
 #          2. Time-based validation (train <= 2015, test 2016-2018): Weibull AFT
 #             on censored data vs a log-duration regression fitted on completed
 #             trials only, same features; concordance on the censored test set
+#          3. Sensitivity to how terminated trials are treated
 # Input:   app/data-raw/cache/oncology_trials_all_status.rds (script 10)
 # Output:  app/models/survival_km_summary.csv, survival_km_curves.csv,
-#          survival_validation.csv
+#          survival_validation.csv, survival_termination_check.csv
 # Author:  Steven Ponce
 # Date:    October 2026
 # ============================================================================
@@ -162,6 +163,54 @@ validation <- data.frame(
 )
 print(validation)
 
+# ---------------------------------------------------------------------------
+# 3. Sensitivity: how terminated trials are treated
+# ---------------------------------------------------------------------------
+# Sections 1-2 censor terminated trials at their stop date, which assumes
+# termination says nothing about when the trial would have completed. Two
+# alternative estimands, by start era:
+#   (a) time to study end: completion OR termination counts as the event
+#   (b) time to completion with termination as a competing event: the
+#       cumulative incidence of completion (Aalen-Johansen); its median is the
+#       month at which half of all trials have completed, if that happens
+terminated_end <- surv_data$overall_status == "TERMINATED" & surv_data$end != pull_date
+surv_data <- surv_data |>
+  mutate(terminated_end = terminated_end,
+         event_end = as.integer(event == 1 | terminated_end),
+         status_cr = factor(case_when(event == 1 ~ "completed",
+                                      terminated_end ~ "terminated",
+                                      TRUE ~ "censored"),
+                            levels = c("censored", "completed", "terminated")))
+
+km_end <- summary(survfit(Surv(time_months, event_end) ~ era, data = surv_data))$table
+cif <- survfit(Surv(time_months, status_cr) ~ era, data = surv_data)
+cif_median <- sapply(seq_along(cif$strata), function(i) {
+  idx <- (c(0, cumsum(cif$strata))[i] + 1):cumsum(cif$strata)[i]
+  p_comp <- cif$pstate[idx, which(cif$states == "completed")]
+  t <- cif$time[idx]
+  if (any(p_comp >= 0.5)) t[which(p_comp >= 0.5)[1]] else NA_real_
+})
+names(cif_median) <- sub("era=", "", names(cif$strata))
+cif_at <- function(m) sapply(seq_along(cif$strata), function(i) {
+  idx <- (c(0, cumsum(cif$strata))[i] + 1):cumsum(cif$strata)[i]
+  p_comp <- cif$pstate[idx, which(cif$states == "completed")]
+  t <- cif$time[idx]
+  if (min(t) > m) 0 else p_comp[max(which(t <= m))]
+})
+
+termination_check <- surv_data |>
+  group_by(era) |>
+  summarise(n = n(), n_terminated = sum(.data$terminated_end), .groups = "drop") |>
+  mutate(
+    km_median_terminated_censored = round(unname(km_tab[paste0("era=", era), "median"]), 1),
+    km_median_study_end = round(unname(km_end[paste0("era=", era), "median"]), 1),
+    cif_median_completion = round(unname(cif_median[era]), 1),
+    completed_by_60mo = round(cif_at(60), 3),
+    completed_by_84mo = round(cif_at(84), 3)
+  )
+print(as.data.frame(termination_check))
+
+write.csv(termination_check, here("app", "models", "survival_termination_check.csv"), row.names = FALSE)
 write.csv(km_summary, here("app", "models", "survival_km_summary.csv"), row.names = FALSE)
 write.csv(km_curves,  here("app", "models", "survival_km_curves.csv"),  row.names = FALSE)
 write.csv(validation, here("app", "models", "survival_validation.csv"), row.names = FALSE)

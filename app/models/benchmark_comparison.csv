@@ -1,0 +1,9 @@
+"split","model","test_n","rsq_cor","rsq_trad","median_abs_err_mo","median_err_mo"
+"random (mean of 5)","Elastic Net (all features)",NA,0.245,0.241,20.626,4.243
+"random (mean of 5)","Constant (training mean)",NA,NA,-0.005,23.439,7.65
+"random (mean of 5)","Phase median",NA,0.011,-0.002,23.889,1.753
+"random (mean of 5)","Phase x sponsor median",NA,0.095,0.082,22.289,2.054
+"time-based","Elastic Net (all features)",378,0.106,0.03,15.205,-1.803
+"time-based","Constant (training mean)",378,NA,-0.138,18.571,-6.277
+"time-based","Phase median",378,0.011,-0.242,19.759,-10.562
+"time-based","Phase x sponsor median",378,0.012,-0.186,19.294,-7.14

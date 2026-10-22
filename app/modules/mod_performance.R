@@ -128,7 +128,7 @@ mod_performance_ui <- function(id) {
          data (trials started 2015 or earlier). All metrics in a row come from the same
          configuration (the one with the best CV RMSE); R² (CV) here is the squared correlation.",
          selection_note, "The 2016-2018 test set was not used for model selection; it was
-         used for the final evaluation and to size the forecaster's likely range.")),
+         used for the final evaluation and to size the sandbox's historical test-error range.")),
       
       reactableOutput(ns("model_comparison_table"))
     ),
@@ -204,7 +204,7 @@ mod_performance_ui <- function(id) {
           h4("Limitations"),
           tags$ul(
             tags$li("Oncology-specific model"),
-            tags$li(sprintf("Limited prospective accuracy (R² ≈ %.2f)", model_metrics$r_squared)),
+            tags$li(sprintf("Limited accuracy on later trials (R² ≈ %.2f)", model_metrics$r_squared)),
             tags$li("Registry data lacks protocol details"),
             tags$li("Test window excludes long, unfinished trials")
           )

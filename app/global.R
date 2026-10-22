@@ -171,6 +171,9 @@ split_comparison <- read.csv("models/split_comparison.csv")
 survival_km <- if (file.exists("models/survival_km_summary.csv")) read.csv("models/survival_km_summary.csv") else NULL
 survival_curves <- if (file.exists("models/survival_km_curves.csv")) read.csv("models/survival_km_curves.csv") else NULL
 survival_val <- if (file.exists("models/survival_validation.csv")) read.csv("models/survival_validation.csv") else NULL
+# How terminated trials are treated (scripts/11, section 3) and simple benchmarks (scripts/12)
+survival_term <- if (file.exists("models/survival_termination_check.csv")) read.csv("models/survival_termination_check.csv") else NULL
+benchmarks <- if (file.exists("models/benchmark_comparison.csv")) read.csv("models/benchmark_comparison.csv") else NULL
 
 # Pre-start-only refit (scripts/08) and API return-order check (scripts/09)
 prestart <- read.csv("models/prestart_comparison.csv")
@@ -343,7 +346,7 @@ format_duration <- function(months) {
 app_info <- list(
   title = "Clinical Trial Duration Forecaster",
   subtitle = "A Validation-First Case Study",
-  version = "1.4.0",  # October 2026: date-parsing fix, retrained, metrics computed from artifacts
+  version = "1.5.0",  # October 2026: review feedback (benchmarks, termination check, sandbox labels)
   data_source = "ClinicalTrials.gov",
   n_trials = nrow(trials_data),  # full cohort (includes 2019+ trials excluded from modeling)
   # Modeling split (time-based): train <= 2015, test 2016-2018
@@ -368,7 +371,7 @@ app_info <- list(
   validation = list(
     type = "Time-based (train ≤2015, test 2016-2018)",
     rationale = "Avoids right-truncation bias from incomplete recent trials",
-    key_finding = "Limited prospective forecasting capability from registry data alone"
+    key_finding = "The registry features and models evaluated here did not support reliable forecasts for later trials"
   )
 )
 

@@ -64,12 +64,13 @@ mod_methods_ui <- function(id) {
           ". Part of that drop is the test window, not the model: only 2016–2018 trials that had ",
           "finished by the data pull are included. Scoring the random split on trials that fit ",
           "the same window gives R² ≈ ", sprintf("%.2f", model_metrics$random_trunc_r_squared),
-          ", so roughly ", share_window, "% of the drop comes from the window (",
+          ". As a sensitivity check, that suggests the window accounts for a large part of the drop ",
+          "(about ", share_window, "% in this comparison, ",
           model_metrics$window_share_range[1], "–", model_metrics$window_share_range[2],
-          "% across the five splits) and the rest from predicting later trials. That share is ",
-          "probably a lower bound: the check uses one ", model_metrics$test_max_months,
-          "-month cap, while trials started in ", model_metrics$test_end, " that finished ran at most ",
-          model_metrics$test_last_year_max_months, " months. Either way, registry fields explain little of the variation."
+          "% across the five splits). It illustrates the window's effect rather than decomposing the gap: ",
+          "the two comparisons also differ in cohort, training data and follow-up, and a single ",
+          model_metrics$test_max_months, "-month cap is not the same as each trial's own follow-up limit. ",
+          "Either way, the registry features used here explain little of the variation."
         )
       }),
       
@@ -118,7 +119,7 @@ mod_methods_ui <- function(id) {
               style = "color: #4A4A68; margin-top: 0.5em;",
               tags$strong("Check:"), " the random split scored only on test trials no longer than ",
               model_metrics$test_max_months, " months, the longest time-based test trial. ",
-              "Approximately separates the truncated test window from the effect of time."
+              "A sensitivity check on how much the truncated window alone lowers R²."
             ),
             div(
               class = "ui label",
@@ -143,12 +144,12 @@ mod_methods_ui <- function(id) {
               style = "color: #4A4A68; margin-top: 0.5em;",
               tags$strong("Approach:"), " train on ≤", model_metrics$train_cutoff, ", test on ",
               model_metrics$test_start, "–", model_metrics$test_end,
-              ". Simulates real forecasting: predicting later trials from earlier ones only."
+              ". Tests whether patterns from earlier start-year cohorts carry over to later ones, using records as they look today."
             ),
             div(
               class = "ui label",
               style = "background: #2E7D32; color: white;",
-              "Closest to prospective use"
+              "Closest to intended use (not a full backtest)"
             )
           )
         )
@@ -165,6 +166,41 @@ mod_methods_ui <- function(id) {
         sprintf("%.2f", model_metrics$r_squared_cor), " for the three splits. Random-split figures ",
         "are the mean of 5 splits (scripts/06_random_vs_time_split.R)."
       ),
+      p(
+        style = "margin-top: 0.5em; font-size: 0.85em; color: #4A4A68;",
+        tags$strong("Not a historical backtest. "), "The time-based split measures transfer across start-year ",
+        "cohorts using records retrieved in 2026. A model built in 2016 could not have known the eventual ",
+        "end dates of every trial started before then, and registry fields are updated after the fact. ",
+        "A stricter test would restrict both outcomes and predictors to what was in the registry at each ",
+        "forecast date, which needs archived registry snapshots this project does not have."
+      ),
+      if (!is.null(benchmarks)) local({
+        b <- benchmarks
+        cell <- function(model, split, col) b[b$model == model & b$split == split, col]
+        models <- c("Elastic Net (all features)", "Phase x sponsor median", "Phase median", "Constant (training mean)")
+        div(
+          style = "margin-top: 1em;",
+          h5(style = "margin-bottom: 0.3em;", "Against simple benchmarks"),
+          tags$table(
+            class = "ui very basic compact table", style = "font-size: 0.85em;",
+            tags$thead(tags$tr(tags$th("Model"), tags$th("R², time-based"), tags$th("Median error, time-based"),
+                               tags$th("R², random (mean of 5)"), tags$th("Median error, random"))),
+            tags$tbody(lapply(models, function(m) tags$tr(
+              tags$td(m),
+              tags$td(sprintf("%.2f", cell(m, "time-based", "rsq_trad"))),
+              tags$td(sprintf("%.1f mo", cell(m, "time-based", "median_abs_err_mo"))),
+              tags$td(sprintf("%.2f", cell(m, "random (mean of 5)", "rsq_trad"))),
+              tags$td(sprintf("%.1f mo", cell(m, "random (mean of 5)", "median_abs_err_mo")))
+            )))
+          ),
+          p(style = "font-size: 0.85em; color: #4A4A68; margin: 0;",
+            "Benchmarks a planner could apply by hand, fitted on the same training trials ",
+            "(scripts/12_benchmarks.R). The model beats them, so the registry fields carry some signal, ",
+            "but the margin is a few months of median error. Its enrollment, site and country inputs are ",
+            "final values known only after the trial; with pre-start inputs only, the time-based R² is ",
+            sprintf("%.2f", prestart_r2("pre-start only", "time-based")), ".")
+        )
+      }),
       
       # Key takeaway
       div(
@@ -172,9 +208,10 @@ mod_methods_ui <- function(id) {
         p(
           style = "margin: 0; color: #1A1A2E;",
           tags$strong("Key Takeaway: "),
-          "This model is ", tags$strong("not suitable for prospective duration forecasting "),
-          "without additional data sources. It remains useful for understanding ",
-          "historical patterns and the factors associated with trial duration."
+          "With the registry features and models evaluated here, the model ",
+          tags$strong("did not support reliable forecasts of individual trial duration"),
+          " for later trials. Other data sources or methods might; this project does not test them. ",
+          "It remains useful for describing historical patterns and the factors associated with duration."
         )
       )
     ),
@@ -215,8 +252,8 @@ mod_methods_ui <- function(id) {
             format(sum(survival_km$n), big.mark = ","), " trials analyzed after the exclusions below). Counting the trials still running, median duration is ",
             round(k$early$km_median), " months for 1990-2015 starts and ", round(k$late$km_median),
             " months for 2016-2018 starts (completed trials only: ", round(k$early$completed_only_median),
-            " and ", round(k$late$completed_only_median), "). Later trials are not shorter; the apparent ",
-            "shortening is the cut-off. With pre-start features, a Weibull survival model trained on ",
+            " and ", round(k$late$completed_only_median), "). On this measure later trials are not shorter, ",
+            "which points to the cut-off rather than a real shortening (see the termination check below). With pre-start features, a Weibull survival model trained on ",
             "1990-2015 starts predicts a median of ", round(v$aft$median_predicted_months),
             " months for 2016-2018 starts (actual ", round(v$aft$test_km_median_months), "), while the same ",
             "features fitted to completed trials only predict ", round(v$naive$median_predicted_months),
@@ -230,9 +267,39 @@ mod_methods_ui <- function(id) {
             " trials with unknown status (dates not verified for 2+ years), ",
             survival_km$n_excluded_never_started[1], " withdrawn or not started, ",
             format(survival_km$n_excluded_no_end_date[1], big.mark = ","),
-            " finished without an end date. Terminated trials are censored at their stop date. ",
+            " finished without an end date. Terminated trials are censored at their stop date, which assumes ",
+            "termination says nothing about when a trial would have finished; the check below relaxes that. ",
             "Pulled ", survival_km$pull_date[1], "; scripts/10_download_all_statuses.R and ",
             "scripts/11_survival_model.R."
+          ))
+        )
+      }),
+
+      if (!is.null(survival_term)) local({
+        t <- setNames(split(survival_term, survival_term$era), c("early", "late"))
+        div(
+          style = "margin-top: 1em; padding: 1em; background: #FFF8E1; border-radius: 4px;",
+          h5(style = "margin-top: 0; color: #8D6E00;", icon("balance scale"), " How terminated trials are treated"),
+          tags$table(
+            class = "ui very basic compact table", style = "font-size: 0.85em;",
+            tags$thead(tags$tr(tags$th("Estimand"), tags$th("Started 1990–2015"), tags$th("Started 2016–2018"))),
+            tags$tbody(
+              tags$tr(tags$td("Median time to completion, terminated trials censored (above)"),
+                      tags$td(paste(t$early$km_median_terminated_censored, "mo")), tags$td(paste(t$late$km_median_terminated_censored, "mo"))),
+              tags$tr(tags$td("Median time to study end (completion or termination)"),
+                      tags$td(paste(t$early$km_median_study_end, "mo")), tags$td(paste(t$late$km_median_study_end, "mo"))),
+              tags$tr(tags$td("Time until half have completed (termination as a competing event)"),
+                      tags$td(paste(t$early$cif_median_completion, "mo")), tags$td(paste(t$late$cif_median_completion, "mo"))),
+              tags$tr(tags$td("Share completed by 5 years"),
+                      tags$td(sprintf("%.0f%%", 100 * t$early$completed_by_60mo)), tags$td(sprintf("%.0f%%", 100 * t$late$completed_by_60mo)))
+            )
+          ),
+          p(style = "font-size: 0.85em; color: #4A4A68; margin: 0;", paste0(
+            format(t$early$n_terminated, big.mark = ","), " and ", t$late$n_terminated,
+            " trials were terminated. Under all three treatments, later trials are not shorter, so the ",
+            "conclusion does not depend on how termination is handled. Matching an overall median is ",
+            "aggregate agreement only: it does not show that individual estimates are well calibrated ",
+            "(concordance stays near 0.56). scripts/11_survival_model.R, section 3."
           ))
         )
       }),
@@ -511,7 +578,7 @@ mod_methods_ui <- function(id) {
            right-truncated: only trials finished by January 2026 are included, so long 2016–2018 
            trials are missing. That makes errors in months look smaller than they would be 
            for a complete cohort and shifts test durations down, which lowers R². The 
-           truncation-matched random split in Validation Lessons separates the two effects.")
+           truncation-matched random split in Validation Lessons is a sensitivity check on that effect.")
       ),
       
       div(

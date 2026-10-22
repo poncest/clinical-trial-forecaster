@@ -12,8 +12,8 @@ mod_forecaster_ui <- function(id) {
   div(
     div(
       class = "tab-header",
-      h2(class = "tab-title", icon("calculator"), " Duration Forecaster"),
-      p(class = "tab-subtitle", "Enter trial characteristics to predict expected duration")
+      h2(class = "tab-title", icon("calculator"), " Model Sandbox"),
+      p(class = "tab-subtitle", "Enter trial characteristics to see how the fitted model responds (not a forecast for planning)")
     ),
     
     # Stage 3: Validation caveat warning
@@ -23,10 +23,10 @@ mod_forecaster_ui <- function(id) {
       div(class = "header", 
           icon("exclamation-triangle"), " Forecasting Limitation"),
       p(
-        sprintf("Time-based validation indicates limited prospective accuracy (R² ≈ %.2f on trials started %s–%s). ",
+        sprintf("Time-based validation shows limited accuracy on later trials (R² ≈ %.2f on trials started %s–%s). ",
                 model_metrics$r_squared, model_metrics$test_start, model_metrics$test_end),
         "Predictions reflect historical patterns that may not apply to future trials. ",
-        "Use for reference ranges only, not operational planning. ",
+        "Use it to explore how the model behaves, not for operational planning. ",
         tags$a(
           href = "#methods",
           onclick = "$('[data-tab=\"methods\"]').click(); return false;",
@@ -47,7 +47,7 @@ mod_forecaster_ui <- function(id) {
           h3(style = paste0("color: ", colors$primary_dark, "; margin-top: 0;"), "Trial Characteristics"),
           
           p(style = paste0("color: ", colors$text_muted, "; font-size: 0.9em; margin-bottom: 1.5em;"),
-            "Configure parameters and click ", tags$strong("Generate Prediction"), "."),
+            "Configure parameters and click ", tags$strong("Explore Model Estimate"), "."),
           
           selectInput(ns("phase"), "Trial Phase",
                       choices = c("Phase 2", "Phase 1/2", "Phase 2/3", "Phase 3"), selected = "Phase 3"),
@@ -68,7 +68,7 @@ mod_forecaster_ui <- function(id) {
           uiOutput(ns("input_errors")),
           
           actionButton(ns("predict"), 
-                       label = tagList(icon("play"), " Generate Prediction"),
+                       label = tagList(icon("play"), " Explore Model Estimate"),
                        class = "ui primary button fluid")
         )
       ),
@@ -113,10 +113,10 @@ mod_forecaster_ui <- function(id) {
       div(
         class = "ui three column stackable grid",
         div(class = "column",
-            tags$strong("What the prediction means"),
+            tags$strong("What the estimate means"),
             p(style = "margin-top: 0.5em;",
-              "The predicted duration represents expected time from study start to 
-             completion date, based on patterns in ",
+              "The model's estimate is a typical (median-like) time from study start to 
+             completion date, not an expected (mean) time, based on patterns in ",
               format(app_info$n_train, big.mark = ","), " completed oncology trials that started
              in 2015 or earlier.")),
         div(class = "column",
@@ -212,29 +212,34 @@ mod_forecaster_server <- function(id, trials_data, ref_stats, phase_levels, spon
       if (is.null(pred)) {
         div(style = "text-align: center; padding: 2em; color: #666;",
             icon("calculator", style = "font-size: 2.5em; opacity: 0.3;"),
-            p(style = "margin-top: 0.5em;", "Click 'Generate Prediction'"))
+            p(style = "margin-top: 0.5em;", "Click 'Explore Model Estimate'"))
       } else {
         capped <- isTRUE(attr(pred, "capped"))
         pred <- as.numeric(pred)
-        band <- pmin(180, pred * exp(ref_stats$resid_q))  # 10%, 25%, 75%, 90%; capped at 15 years
+        band_raw <- pred * exp(ref_stats$resid_q)  # 10%, 25%, 75%, 90%
+        band <- pmin(180, band_raw)                 # display limit: 15 years
+        fmt_end <- function(raw, shown) if (raw > 180) "180+" else as.character(round(shown))
         div(class = "prediction-result",
             div(class = "prediction-value", format_duration(pred)),
-            div(class = "prediction-label", "Model Estimate"),
+            div(class = "prediction-label", "Model Estimate (fitted log-duration model)"),
             div(style = "margin-top: 0.5em; font-size: 0.9em; opacity: 0.85;",
                 paste0("(", round(pred, 1), " months)")),
             if (capped) div(style = "margin-top: 0.5em; font-size: 0.85em;",
                             icon("exclamation circle"),
                             " Estimate capped at the app's 6–180 month display limits; these inputs push the model outside them."),
             div(style = "margin-top: 1em; font-size: 0.9em; line-height: 1.5;",
-                tags$strong(paste0(round(band[1]), "–", round(band[4]), " months")),
-                " likely range",
+                tags$strong(paste0(round(band[1]), "–", fmt_end(band_raw[4], band[4]), " months")),
+                " historical test-error range",
                 br(),
                 span(style = "font-size: 0.85em; opacity: 0.85;",
-                     paste0("80% of 2016–2018 test trials finished within this range of their ",
-                            "estimate (middle half: ", round(band[2]), "–", round(band[3]),
-                            " months). A rough guide: the range is pooled over all test trials, ",
-                            "and long recent trials are missing from them, so the upper end is ",
-                            "likely too low."))))
+                     paste0("For 80% of 2016–2018 test trials, the actual duration fell within this range of the ",
+                            "model's estimate (middle half: ", round(band[2]), "–", fmt_end(band_raw[3], band[3]),
+                            " months). This describes past errors, pooled over all test trials; its coverage for ",
+                            "a new trial has not been established, and long recent trials are missing from the ",
+                            "test set, so the upper end is likely too low. ",
+                            "The estimate back-transforms a log-scale prediction, so it sits near a typical ",
+                            "(median-like) duration rather than an expected (mean) duration.",
+                            if (band_raw[4] > 180) " 180+ marks a range end beyond the app's 15-year display limit." else ""))))
       }
     })
     
@@ -242,7 +247,7 @@ mod_forecaster_server <- function(id, trials_data, ref_stats, phase_levels, spon
     output$comparison <- renderUI({
       pred <- pred_val()
       if (is.null(pred)) {
-        p(style = "color: #666;", "Generate a prediction to see comparison")
+        p(style = "color: #666;", "Run the model estimate to see the comparison")
       } else {
         # Compare against the modeling cohort (started <= 2018), not the full
         # registry pull, whose 2019+ trials are right-truncated
@@ -279,7 +284,7 @@ mod_forecaster_server <- function(id, trials_data, ref_stats, phase_levels, spon
           
           # Interpretation
           div(style = paste0("margin-top: 1em; padding: 0.7em; background: ", colors$background, "; border-radius: 6px; border-left: 3px solid ", interp_color, ";"),
-              p(style = "margin: 0; font-size: 0.9em;", "This prediction is ", tags$strong(interp), "."))
+              p(style = "margin: 0; font-size: 0.9em;", "This estimate is ", tags$strong(interp), "."))
         ))
       }
     })
