@@ -175,7 +175,7 @@ survival_val <- if (file.exists("models/survival_validation.csv")) read.csv("mod
 survival_term <- if (file.exists("models/survival_termination_check.csv")) read.csv("models/survival_termination_check.csv") else NULL
 benchmarks <- if (file.exists("models/benchmark_comparison.csv")) read.csv("models/benchmark_comparison.csv") else NULL
 
-# Pre-start-only refit (scripts/08) and API return-order check (scripts/09)
+# Reduced-feature refit (scripts/08) and API return-order check (scripts/09)
 prestart <- read.csv("models/prestart_comparison.csv")
 prestart_r2 <- function(features, split) prestart$rsq_trad[prestart$features == features & prestart$split == split]
 sampling_check <- read.csv("models/sampling_order_check.csv")
@@ -346,7 +346,7 @@ format_duration <- function(months) {
 app_info <- list(
   title = "Clinical Trial Duration Forecaster",
   subtitle = "A Validation-First Case Study",
-  version = "1.5.0",  # October 2026: review feedback (benchmarks, termination check, sandbox labels)
+  version = "1.5.1",  # October 2026: second review (phase-and-sponsor baseline, wording)
   data_source = "ClinicalTrials.gov",
   n_trials = nrow(trials_data),  # full cohort (includes 2019+ trials excluded from modeling)
   # Modeling split (time-based): train <= 2015, test 2016-2018

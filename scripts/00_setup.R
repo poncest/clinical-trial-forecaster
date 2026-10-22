@@ -87,6 +87,7 @@ modeling_packages <- c(
 # ----------------------------------------------------------------------------
 model_engine_packages <- c(
   "ranger",
+  "vip",
   "xgboost",
   "glmnet",
   "survival"

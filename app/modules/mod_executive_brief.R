@@ -96,13 +96,13 @@ mod_executive_brief_ui <- function(id) {
             class = "insight-box",
             div(class = "insight-title", "Most of the Signal Is Known Only in Hindsight"),
             p(paste0(
-              "Inputs known only once a trial is under way (final enrollment, sites, countries) carry ",
-              "most of the signal. With only what is known at study start (phase, sponsor, ",
-              "registration-to-start lag), R² falls from ",
+              "Inputs known only once a trial is under way (final enrollment, sites, countries, and ",
+              "for most trials the registration lag) carry most of the signal. With phase and sponsor ",
+              "only, log-duration R² falls from ",
               sprintf("%.2f", prestart_r2("all (published model)", "random")), " to ",
-              sprintf("%.2f", prestart_r2("pre-start only", "random")),
-              " on a random split, and to ", sprintf("%.2f", prestart_r2("pre-start only", "time-based")),
-              " on later trials (worse than predicting the average)."
+              sprintf("%.2f", prestart_r2("phase and sponsor", "random")),
+              " on a random split, and to ", sprintf("%.2f", prestart_r2("phase and sponsor", "time-based")),
+              " on later trials (below zero: worse than predicting the average)."
             ))
           ),
           
@@ -110,7 +110,7 @@ mod_executive_brief_ui <- function(id) {
           div(
             class = "insight-box",
             div(class = "insight-title", "Limited Forecasting Power"),
-            p(paste0("Registry features explain about ", round(100 * model_metrics$random_split_r_squared), "% of duration variance on a random split, but about ", round(100 * model_metrics$r_squared), "% for trials started after the training period (about ", round(100 * model_metrics$random_trunc_r_squared), "% on a random split scored on the same truncated test window, so part of the drop is the window itself). Protocol complexity, endpoint strategy and operational factors not captured in public data drive most of the variation."))
+            p(paste0("Registry features explain about ", round(100 * model_metrics$random_split_r_squared), "% of the variance in log duration on a random split, but about ", round(100 * model_metrics$r_squared), "% for trials started after the training period (about ", round(100 * model_metrics$random_trunc_r_squared), "% on a random split scored on the same truncated test window, so part of the drop is the window itself). Protocol complexity, endpoint strategy and operational factors not captured in public data drive most of the variation."))
           )
         )
       ),
@@ -180,8 +180,8 @@ mod_executive_brief_ui <- function(id) {
           p("A worked example of why validation must match intended use: the same model 
              scores R² ", sprintf("%.2f", model_metrics$random_split_r_squared),
             " on a random split and ", sprintf("%.2f", model_metrics$r_squared),
-            " on later trials, and a truncation-matched check shows how much of that gap ",
-            "comes from the test window rather than time. It also shows why independent review matters: an earlier 
+            " on later trials, and a truncation-matched check illustrates how sensitive that ",
+            "comparison is to the test-outcome window. It also shows why independent review matters: an earlier 
              version's R² of 0.84 came from a date-parsing bug (see Methods & Data).")
         ),
         

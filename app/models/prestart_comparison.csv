@@ -1,5 +1,7 @@
 "features","split","rsq_trad","rsq_cor","median_abs_err_mo","n_runs"
 "all (published model)","random",0.241,0.245,20.626,5
 "all (published model)","time-based",0.03,0.106,15.205,1
-"pre-start only","random",0.099,0.104,22.221,5
-"pre-start only","time-based",-0.075,0.012,18.338,1
+"phase and sponsor","random",0.088,0.094,22.196,5
+"phase and sponsor","time-based",-0.09,0.015,18.329,1
+"phase, sponsor and lag","random",0.099,0.104,22.221,5
+"phase, sponsor and lag","time-based",-0.075,0.012,18.338,1

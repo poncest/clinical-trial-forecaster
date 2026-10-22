@@ -25,7 +25,7 @@ mod_forecaster_ui <- function(id) {
       p(
         sprintf("Time-based validation shows limited accuracy on later trials (R² ≈ %.2f on trials started %s–%s). ",
                 model_metrics$r_squared, model_metrics$test_start, model_metrics$test_end),
-        "Predictions reflect historical patterns that may not apply to future trials. ",
+        "Estimates reflect historical patterns that may not apply to future trials. ",
         "Use it to explore how the model behaves, not for operational planning. ",
         tags$a(
           href = "#methods",

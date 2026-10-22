@@ -224,7 +224,7 @@ mod_features_server <- function(id, trials_data, feature_importance) {
           "Sponsor Type"
         ),
         Description = c(
-          "Days from first ClinicalTrials.gov registration to study start (negative if registered after start)",
+          "Days from first ClinicalTrials.gov registration to study start (negative if registered after start, as 55% were; then not known at study start)",
           "Total investigator sites participating (log-transformed)",
           "Actual (final) enrollment as reported at completion (log-transformed)",
           "Average patients per site = enrollment / sites (log-transformed)",
