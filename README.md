@@ -38,9 +38,20 @@ Same cohort (2,457 trials started 2018 or earlier), recipe, tuning grid and Elas
 
 -   **Registry limitations:** ClinicalTrials.gov lacks protocol complexity, endpoint strategy, and competitive dynamics, so the signal that exists is weak and partly era-specific
 -   **Right-truncation of the test window:** only completed trials are included, so a 2016–2018 trial had to finish by the January 2026 data pull (longest: 112 months). Long trials are missing, which shifts test durations down (test trials ran on average about 13% shorter than predicted) and slightly narrows their range. Both lower R², and both make errors in months look *smaller* than on the random split. Scoring the random split on the same window (middle row) approximately separates this effect from the effect of time: roughly half the drop (40–80% across splits) is the window. That is probably a lower bound, because the check applies a single 112-month cap while 2018 starts that finished ran at most 89 months
--   **Later trials look shorter, partly by construction:** median duration is 64 months for trials started by 2015 and 52 months for 2016–2018; among earlier trials no longer than 112 months the median is 56. Most of the apparent shift is the truncation above, not a change in practice
+-   **Later trials only look shorter:** among completed trials, median duration is 64 months for trials started by 2015 and 52 months for 2016–2018; among earlier trials no longer than 112 months the median is 56. A censoring-aware check on a full pull of 20,562 trials (any status, unfinished trials censored) settles it: counting the trials still running, the median is 68 months for 1990–2015 starts and **73 months for 2016–2018 starts**. Later trials are not shorter; the apparent shortening is the cut-off
 
 This is not "model failure"—it shows why validation must match the intended decision context.
+
+### Censoring-aware check (October 2026)
+
+The published model keeps completed trials only. A fresh pull of every Phase 2/3 cancer treatment trial started 1990–2018, of any status (`scripts/10_download_all_statuses.R`), lets unfinished trials enter as censored observations (`scripts/11_survival_model.R`). With pre-start features only, trained on 1990–2015 starts and tested on 2016–2018 starts:
+
+| Model | Predicted median (months) | Actual median, Kaplan–Meier | Concordance |
+|----|---:|---:|---:|
+| Weibull survival model, censored data | 73 | 73 | 0.56 |
+| Same features, completed trials only | 57 | 73 | 0.56 |
+
+Handling censoring removes a 16-month downward bias, but the ranking signal stays weak: registry fields still cannot say *which* trials will run long. Excluded: trials with unknown status (3,677), withdrawn or never started (887), and finished trials with no end date (1,123); terminated trials are censored at their stop date.
 
 ------------------------------------------------------------------------
 
@@ -197,10 +208,11 @@ clinical-trial-forecaster/
 │   │   ├── sensitivity_oncology_filter.csv # cohort sensitivity check (script 05)
 │   │   ├── date_parsing_audit.csv          # counts behind the correction note (script 07)
 │   │   ├── prestart_comparison.csv         # pre-start-only features (script 08)
-│   │   └── sampling_order_check.csv        # API return-order check (script 09)
+│   │   ├── sampling_order_check.csv        # API return-order check (script 09)
+│   │   └── survival_*.csv                  # censoring-aware check (script 11)
 │   ├── data-raw/
 │   │   ├── modeling/            # Feature table read by the app
-│   │   └── cache/               # Jan 2026 ClinicalTrials.gov snapshot (not deployed)
+│   │   └── cache/               # Jan 2026 snapshot + Oct 2026 all-status pull (not deployed)
 │   ├── docs/                    # Diagnostic plots (not deployed)
 │   └── www/
 │       └── styles.css
@@ -215,7 +227,9 @@ clinical-trial-forecaster/
 │   ├── 06_random_vs_time_split.R
 │   ├── 07_date_parsing_audit.R
 │   ├── 08_prestart_features.R
-│   └── 09_sampling_order_check.R
+│   ├── 09_sampling_order_check.R
+│   ├── 10_download_all_statuses.R   # full any-status pull (needs internet)
+│   └── 11_survival_model.R
 └── screenshots/
 ```
 

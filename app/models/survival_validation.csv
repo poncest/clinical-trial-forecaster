@@ -1,0 +1,3 @@
+"model","train_n","test_n","test_concordance","median_predicted_months","test_km_median_months"
+"Weibull AFT, censored data",16676,3886,0.561,72.7,73.2
+"Regression on completed trials only",12916,3886,0.563,57,73.2

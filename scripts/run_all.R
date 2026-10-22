@@ -6,7 +6,8 @@
 # Uses the cached January 2026 ClinicalTrials.gov snapshot in
 # app/data-raw/cache/; set options(ctf.force_download = TRUE) in
 # 02_download_and_clean.R's session to re-query the API instead.
-# Script 01 only tests the API connection and is not needed here.
+# Script 01 only tests the API connection; script 10 re-downloads the
+# all-status pull (needs internet) and is run by hand when refreshing it.
 # Model tuning (04) takes several minutes.
 # ============================================================================
 
@@ -20,7 +21,8 @@ scripts <- c(
   "06_random_vs_time_split.R",        # random vs time-based (+ truncation-matched)
   "07_date_parsing_audit.R",          # counts behind the correction note
   "08_prestart_features.R",           # signal left with pre-start features only
-  "09_sampling_order_check.R"         # does the API cap cut by date?
+  "09_sampling_order_check.R",        # does the API cap cut by date?
+  "11_survival_model.R"               # censoring-aware check (uses script 10's pull)
 )
 
 for (s in scripts) {
